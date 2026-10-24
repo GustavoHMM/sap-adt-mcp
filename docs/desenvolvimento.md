@@ -74,6 +74,19 @@ npm.cmd run cli -- test --profile QAS400
 
 Cuidado: cada tentativa com senha errada conta para o bloqueio do usuário no SAP.
 
+## Registro manual no Claude Code (até a fase 3 automatizar)
+
+A CLI do Claude Code que vem com o Claude Desktop fica fora do PATH, numa pasta versionada (nesta VM: `%LOCALAPPDATA%\Claude-Data\claude_pzs8sxrjxfjjc\claude-code\2.1.308\23655dab5580\claude.exe`). Ela serve para registrar e checar servidores, mas não está logada para conversas avulsas (`-p`).
+
+```powershell
+& '<caminho>\claude.exe' mcp add --scope user abap-adt-QAS400 '--' 'C:\Projetos\abap-adt-mcp\build\cli\win-arm64\abap-adt-mcp.exe' serve --profile QAS400
+& '<caminho>\claude.exe' mcp get abap-adt-QAS400
+```
+
+O `'--'` vai entre aspas para o PowerShell 5.1 não engoli-lo. A entrada gravada em `~/.claude.json` tem só o executável e o perfil, sem nenhuma variável `SAP_*`. Para ver quem iniciou o servidor, confira `state\serve-<perfil>.json` (`clientName`).
+
+Enquanto o Claude estiver usando o servidor, o Windows trava o `.exe`, e `npm.cmd run build:cli` falha ao substituí-lo. Feche as sessões do Claude ou remova o registro antes de recompilar (problema R8 do plano, resolvido de vez na fase 4).
+
 ## Onde ficam os dados durante o desenvolvimento
 
 - Perfis, logs e estado: `%LOCALAPPDATA%\abap-adt-mcp` (os testes usam pastas temporárias via `ABAP_ADT_MCP_HOME`).
