@@ -1,0 +1,12 @@
+node_modules/
+dist/
+out/
+build/
+release/
+*.log
+*.tsbuildinfo
+.env
+.env.*
+coverage/
+.vscode/
+.idea/
