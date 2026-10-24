@@ -1,0 +1,13 @@
+{
+  "name": "@abap-adt-mcp/cli",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "abap-adt-mcp": "./src/main.ts"
+  },
+  "dependencies": {
+    "@abap-adt-mcp/core": "0.1.0",
+    "@modelcontextprotocol/client": "2.4.0"
+  }
+}

@@ -1,0 +1,3 @@
+[submodule "vendor/mcp-abap-adt"]
+	path = vendor/mcp-abap-adt
+	url = https://github.com/mario-andreschak/mcp-abap-adt.git

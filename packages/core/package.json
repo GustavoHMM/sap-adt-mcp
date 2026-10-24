@@ -1,0 +1,13 @@
+{
+  "name": "@abap-adt-mcp/core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "2.1.2",
+    "koffi": "3.3.3"
+  }
+}

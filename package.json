@@ -1,0 +1,31 @@
+{
+  "name": "abap-adt-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "App para Windows que conecta o Claude ao SAP via ADT, usando o servidor MCP mcp-abap-adt",
+  "license": "MIT",
+  "author": "Gustavo Maia",
+  "type": "module",
+  "engines": {
+    "node": ">=24.22.0 <25"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "upstream:build": "node scripts/build-upstream.mjs",
+    "build:cli": "node scripts/build-cli.mjs",
+    "cli": "node apps/cli/src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test --test-concurrency=1 \"packages/*/test/**/*.test.ts\" \"apps/*/test/**/*.test.ts\"",
+    "test:exe": "node --test --test-concurrency=1 \"apps/cli/test/**/*.test.ts\"",
+    "check": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "esbuild": "0.28.2",
+    "postject": "1.0.0-alpha.6",
+    "typescript": "7.0.2"
+  }
+}
