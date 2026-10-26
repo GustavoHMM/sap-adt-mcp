@@ -6,6 +6,11 @@ import { appHome } from './paths.ts';
 export interface Settings {
   /** Manual language choice; absent means "follow Windows". */
   language?: 'pt' | 'en';
+  /**
+   * Which profiles the person connected to which Claude. When an entry is gone
+   * from Claude's config but still wanted here, another program removed it.
+   */
+  claude?: Record<string, { desktop?: boolean; code?: boolean }>;
 }
 
 const settingsFile = () => path.join(appHome(), 'settings.json');
