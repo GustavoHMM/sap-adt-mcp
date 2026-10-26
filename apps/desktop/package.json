@@ -1,0 +1,23 @@
+{
+  "name": "@abap-adt-mcp/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ABAP ADT MCP",
+  "type": "module",
+  "main": "out/main.cjs",
+  "dependencies": {
+    "@abap-adt-mcp/core": "0.1.0",
+    "@fluentui/react-components": "9.74.10",
+    "@fluentui/react-icons": "2.0.344",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "45.0.0",
+    "playwright-core": "1.64.1",
+    "vite": "8.3.5"
+  }
+}

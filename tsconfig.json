@@ -14,5 +14,6 @@
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  "include": ["packages/*/src", "packages/*/test", "apps/*/src", "apps/*/test"]
+  "include": ["packages/*/src", "packages/*/test", "apps/*/src", "apps/*/test", "apps/*/test-ui"],
+  "exclude": ["apps/desktop/src/renderer"]
 }

@@ -17,9 +17,12 @@
     "upstream:build": "node scripts/build-upstream.mjs",
     "build:cli": "node scripts/build-cli.mjs",
     "cli": "node apps/cli/src/main.ts",
-    "typecheck": "tsc -p tsconfig.json",
+    "desktop:build": "node scripts/build-desktop.mjs",
+    "desktop": "node scripts/build-desktop.mjs --run",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/desktop/tsconfig.json",
     "test": "node --test --test-concurrency=1 \"packages/*/test/**/*.test.ts\" \"apps/*/test/**/*.test.ts\"",
     "test:exe": "node --test --test-concurrency=1 \"apps/cli/test/**/*.test.ts\"",
+    "test:desktop": "node scripts/build-desktop.mjs && node --test --test-concurrency=1 \"apps/desktop/test-ui/**/*.test.ts\"",
     "check": "npm run typecheck && npm test"
   },
   "devDependencies": {
@@ -27,5 +30,10 @@
     "esbuild": "0.28.2",
     "postject": "1.0.0-alpha.6",
     "typescript": "7.0.2"
+  },
+  "allowScripts": {
+    "electron@45.0.0": true,
+    "esbuild": false,
+    "koffi": false
   }
 }
