@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Testes (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # Native runs on both architectures: x64 and Windows on Arm.
+        runner: [windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run upstream:build
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build:cli
+      - name: Testes de ponta a ponta no executável
+        shell: pwsh
+        run: |
+          $env:ABAP_ADT_MCP_CLI_EXE = Join-Path $PWD "build\cli\win-$(node -p process.arch)\abap-adt-mcp.exe"
+          npm run test:exe
+      - run: npm run test:desktop
+
+  package:
+    name: Instalador
+    needs: test
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run upstream:build
+      - name: Instalador universal (x64 + ARM64)
+        shell: pwsh
+        env:
+          GH_OWNER: ${{ github.repository_owner }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: set these repository secrets when a code-signing certificate exists.
+          WINDOWS_SIGN_COMMAND: ${{ secrets.WINDOWS_SIGN_COMMAND }}
+          WINDOWS_SIGNTOOL: ${{ secrets.WINDOWS_SIGNTOOL }}
+        run: |
+          $publish = if ($env:GITHUB_REF -like 'refs/tags/v*') { 'always' } else { 'never' }
+          node scripts/package.mjs --arch universal --publish $publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: instalador
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
+          if-no-files-found: error

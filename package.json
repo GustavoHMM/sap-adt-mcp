@@ -18,6 +18,8 @@
     "build:cli": "node scripts/build-cli.mjs",
     "cli": "node apps/cli/src/main.ts",
     "desktop:build": "node scripts/build-desktop.mjs",
+    "package": "node scripts/package.mjs",
+    "icons": "node scripts/make-icons.mjs",
     "desktop": "node scripts/build-desktop.mjs --run",
     "typecheck": "tsc -p tsconfig.json && tsc -p apps/desktop/tsconfig.json",
     "test": "node --test --test-concurrency=1 \"packages/*/test/**/*.test.ts\" \"apps/*/test/**/*.test.ts\"",
@@ -27,13 +29,16 @@
   },
   "devDependencies": {
     "@types/node": "24.19.2",
+    "electron-builder": "26.18.0",
     "esbuild": "0.28.2",
     "postject": "1.0.0-alpha.6",
+    "sharp": "0.35.5",
     "typescript": "7.0.2"
   },
   "allowScripts": {
     "electron@45.0.0": true,
     "esbuild": false,
-    "koffi": false
+    "koffi": false,
+    "electron-winstaller": false
   }
 }
