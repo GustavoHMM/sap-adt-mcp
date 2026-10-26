@@ -142,9 +142,9 @@ test('the test command runs every step, including MCP end to end', { skip: !wind
   const steps = run.stdout.trim().split('\n').map((l) => JSON.parse(l) as { step: string; status: string; lines: { text: string }[] });
   assert.deepEqual(
     steps.map((s) => `${s.step}:${s.status}`),
-    ['url:ok', 'proxy:ok', 'dns:ok', 'tcp:ok', 'tls:ok', 'adt:ok', 'csrf:ok', 'mcp:ok'],
+    ['url:ok', 'proxy:ok', 'dns:ok', 'tcp:ok', 'tls:ok', 'adt:ok', 'csrf:ok', 'mcp:ok', 'claude:skip'],
   );
-  assert.match(steps.at(-1)!.lines[0]!.text, /15 ferramentas disponíveis para o Claude \(desativadas neste perfil: 1\)/);
+  assert.match(steps.find((s) => s.step === 'mcp')!.lines[0]!.text, /15 ferramentas disponíveis para o Claude \(desativadas neste perfil: 1\)/);
   assert.equal(run.code, 0);
   assert.ok(!run.stdout.includes('secret-1'));
 });

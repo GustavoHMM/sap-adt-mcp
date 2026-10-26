@@ -7,10 +7,15 @@ import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
 
-/** Temporary app home so tests never touch the real profiles. */
+/**
+ * Temporary app home and credential namespace so tests never touch real
+ * profiles or passwords, and no Claude reachability check (no internet).
+ */
 export function tempHome(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'abap-adt-mcp-test-'));
   process.env.ABAP_ADT_MCP_HOME = dir;
+  process.env.ABAP_ADT_MCP_CREDENTIAL_NAMESPACE = 'test';
+  process.env.ABAP_ADT_MCP_CLAUDE_CHECK = 'off';
   return dir;
 }
 

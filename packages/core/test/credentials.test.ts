@@ -4,6 +4,7 @@ import { after, test } from 'node:test';
 import { uniqueId } from './helpers/fixtures.ts';
 import { credentialTarget, deletePassword, getPassword, setPassword } from '../src/credentials.ts';
 
+process.env.ABAP_ADT_MCP_CREDENTIAL_NAMESPACE = 'test';
 const id = uniqueId('test');
 after(() => {
   try {
@@ -27,5 +28,5 @@ test('passwords round-trip through Windows Credential Manager, also from another
   assert.equal(getPassword(id), 'trocada');
   assert.equal(deletePassword(id), true);
   assert.equal(getPassword(id), null);
-  assert.equal(credentialTarget(id), `${id}.abap-adt-mcp`);
+  assert.equal(credentialTarget(id), `${id}.abap-adt-mcp-test`);
 });

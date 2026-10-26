@@ -40,7 +40,7 @@ test('every step passes against a healthy ADT service, with sap-client and langu
   mock.mode = 'ok';
   mock.requests.length = 0;
   const results = await runConnectionTest({ profile, password: 'secret-1' });
-  assert.deepEqual(statuses(results), { url: 'ok', proxy: 'ok', dns: 'ok', tcp: 'ok', tls: 'ok', adt: 'ok', csrf: 'ok', mcp: 'skip' });
+  assert.deepEqual(statuses(results), { url: 'ok', proxy: 'ok', dns: 'ok', tcp: 'ok', tls: 'ok', adt: 'ok', csrf: 'ok', mcp: 'skip', claude: 'skip' });
   assert.deepEqual(mock.requests, [{ method: 'GET', path: '/sap/bc/adt/discovery', client: '400', language: 'PT', authOk: true }]);
 });
 
@@ -103,7 +103,7 @@ test('through a proxy the SAP traffic is tunnelled end to end', async () => {
   const proxy = await startConnectProxy();
   try {
     const results = await runConnectionTest({ profile: { ...profile, proxy: { mode: 'manual', url: proxy.url } }, password: 'secret-1' });
-    assert.deepEqual(statuses(results), { url: 'ok', proxy: 'ok', dns: 'ok', tcp: 'ok', tls: 'ok', adt: 'ok', csrf: 'ok', mcp: 'skip' });
+    assert.deepEqual(statuses(results), { url: 'ok', proxy: 'ok', dns: 'ok', tcp: 'ok', tls: 'ok', adt: 'ok', csrf: 'ok', mcp: 'skip', claude: 'skip' });
     assert.ok(proxy.connects.every((c) => c === `localhost:${mock.port}`) && proxy.connects.length >= 3);
     assert.deepEqual(proxy.plainRequests, []);
   } finally {
