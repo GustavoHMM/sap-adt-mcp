@@ -99,6 +99,14 @@ export function mcpServerName(profileId: string): string {
   return `abap-adt-${profileId}`;
 }
 
+/** "QAS" + "400" → "QAS400", with a numeric suffix when the id is taken. */
+export function suggestProfileId(environment: Environment, client: string, taken: readonly string[]): string {
+  const base = `${environment}${/^\d{3}$/.test(client) ? client : ''}` || 'SAP';
+  const used = new Set(taken.map((id) => id.toLowerCase()));
+  if (!used.has(base.toLowerCase())) return base;
+  for (let i = 2; ; i++) if (!used.has(`${base}_${i}`.toLowerCase())) return `${base}_${i}`;
+}
+
 function readDocument(): ProfilesDocument {
   let text: string;
   try {

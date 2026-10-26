@@ -1,7 +1,27 @@
 import { X509Certificate } from 'node:crypto';
 import fs from 'node:fs';
+import path from 'node:path';
 import tls from 'node:tls';
-import type { Profile } from './profiles.ts';
+import { certsDir } from './paths.ts';
+import type { Profile, TrustedCertificate } from './profiles.ts';
+
+/**
+ * Stores a server certificate the person chose to trust for one profile. The
+ * fingerprint shown to them must match the PEM, so nothing else can be slipped in.
+ */
+export function saveTrustedCertificate(profileId: string, pem: string, expectedFingerprint256: string): TrustedCertificate {
+  const cert = new X509Certificate(pem);
+  if (cert.fingerprint256 !== expectedFingerprint256) throw new Error('certificate fingerprint mismatch');
+  fs.mkdirSync(certsDir(), { recursive: true });
+  const file = path.join(certsDir(), `${profileId}.pem`);
+  fs.writeFileSync(file, cert.toString(), 'utf8');
+  return {
+    file,
+    fingerprint256: cert.fingerprint256,
+    subject: cert.subject.split('\n').join(', '),
+    validTo: new Date(cert.validTo).toISOString().slice(0, 10),
+  };
+}
 
 /** The per-profile certificate file, when the person chose to trust one and it still exists. */
 export function extraCaFile(profile: Profile): string | undefined {

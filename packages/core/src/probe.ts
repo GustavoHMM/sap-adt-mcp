@@ -9,14 +9,14 @@ import type { Profile } from './profiles.ts';
 import { resolveProxy, type ProxyDecision } from './proxy/resolve.ts';
 import { APP_VERSION } from './version.ts';
 
-export type StepId = 'url' | 'proxy' | 'dns' | 'tcp' | 'tls' | 'adt' | 'csrf' | 'mcp';
+export type StepId = 'url' | 'proxy' | 'dns' | 'tcp' | 'tls' | 'adt' | 'csrf' | 'mcp' | 'claude';
 export type StepStatus = 'ok' | 'warn' | 'fail' | 'skip';
 type Vars = Record<string, string | number>;
 
 export interface StepLine {
   key: MessageKey;
   vars?: Vars;
-  kind: 'main' | 'detail' | 'action' | 'basis';
+  kind: 'main' | 'detail' | 'action' | 'basis' | 'it';
 }
 
 export interface StepResult {
@@ -32,6 +32,8 @@ export interface ConnectionTestInput {
   password: string | null;
   /** End-to-end MCP check, supplied by the CLI because it knows how to start itself. */
   mcpCheck?: () => Promise<StepResult>;
+  /** Can Claude itself reach Anthropic from this network? Runs even when SAP fails. */
+  claudeCheck?: () => Promise<StepResult>;
   onStep?: (result: StepResult) => void;
   timeoutMs?: number;
 }
@@ -44,9 +46,21 @@ const basis = (key: MessageKey, vars?: Vars): StepLine => ({ key, vars, kind: 'b
 
 /**
  * Runs the connection test step by step, with the same trust store and proxy
- * decision the upstream gets, and stops at the first failing step.
+ * decision the upstream gets, and stops at the first failing SAP step. The
+ * Claude access check always runs: "SAP only with VPN, Claude only without" is
+ * exactly what people need to see side by side.
  */
 export async function runConnectionTest(input: ConnectionTestInput): Promise<StepResult[]> {
+  const results = await runSapSteps(input);
+  const claude: StepResult = input.claudeCheck
+    ? await input.claudeCheck()
+    : { step: 'claude', status: 'skip', lines: [main('test.claude.off')] };
+  results.push(claude);
+  input.onStep?.(claude);
+  return results;
+}
+
+async function runSapSteps(input: ConnectionTestInput): Promise<StepResult[]> {
   const { profile } = input;
   const timeout = input.timeoutMs ?? 10_000;
   const results: StepResult[] = [];

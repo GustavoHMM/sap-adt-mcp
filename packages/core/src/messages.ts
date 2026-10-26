@@ -1,16 +1,22 @@
+import { loadSettings } from './settings.ts';
+
 export type Lang = 'pt' | 'en';
 
-/** Language of the Windows user interface, as reported to the runtime. */
+/** Forced by ABAP_ADT_MCP_LANG, else the choice saved in the app, else the Windows language. */
 export function detectLang(): Lang {
   const forced = process.env.ABAP_ADT_MCP_LANG;
   if (forced === 'pt' || forced === 'en') return forced;
-  const locale = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase();
-  return locale.startsWith('pt') ? 'pt' : 'en';
+  const saved = loadSettings().language;
+  if (saved) return saved;
+  return langFromLocale(Intl.DateTimeFormat().resolvedOptions().locale);
+}
+
+export function langFromLocale(locale: string): Lang {
+  return locale.toLowerCase().startsWith('pt') ? 'pt' : 'en';
 }
 
 /** Default SAP logon language: the two-letter code of the Windows language. */
-export function defaultSapLanguage(): string {
-  const locale = Intl.DateTimeFormat().resolvedOptions().locale;
+export function defaultSapLanguage(locale: string = Intl.DateTimeFormat().resolvedOptions().locale): string {
   const code = locale.slice(0, 2).toUpperCase();
   return /^[A-Z]{2}$/.test(code) ? code : 'EN';
 }
@@ -36,7 +42,7 @@ const pt = {
   'cli.usage': [
     'Uso:',
     '  abap-adt-mcp serve --profile <ID>          Servidor MCP para o Claude (stdio)',
-    '  abap-adt-mcp test --profile <ID> [--json]  Testa a conexão em etapas',
+    '  abap-adt-mcp test --profile <ID> [--json] [--no-claude-check]  Testa a conexão em etapas',
     '  abap-adt-mcp profile add --id <ID> --name <nome> --url <url> --client <mandante>',
     '                           --user <usuário> --env <DEV|QAS|PRD> [--lang <PT>] [--allow-http]',
     '  abap-adt-mcp profile list | show <ID> | remove <ID>',
@@ -115,6 +121,20 @@ const pt = {
   'test.mcp.ok': '{tools} ferramentas disponíveis para o Claude (desativadas neste perfil: {hidden}); a busca de teste respondeu.',
   'test.mcp.fail': 'O servidor MCP falhou: {message}',
   'test.basisText': 'Texto pronto para o Basis:',
+  'test.itText': 'Texto pronto para o TI:',
+  'test.step.claude': 'Acesso ao Claude',
+  'test.claude.off': 'não verificado nesta execução',
+  'test.claude.ok': 'O Claude é alcançável desta rede ({hosts}).',
+  'test.claude.okInspected': 'O Claude é alcançável, mas a rede inspeciona o tráfego (certificado de {issuer}, confiável neste Windows).',
+  'test.claude.inspected': 'A rede está abrindo o tráfego do Claude ({host}) com o certificado "{issuer}", que não é confiável neste Windows. Nesta rede, o Claude não vai funcionar.',
+  'test.claude.inspectedCa': 'Certificado da rede: {subject} | SHA-256: {fingerprint}',
+  'test.claude.inspectedAction': 'Peça ao TI para tirar os domínios da Anthropic da inspeção, ou para instalar oficialmente o certificado da empresa neste computador.',
+  'test.claude.unreachable': 'Não foi possível chegar a {host} ({code}). A rede ou a VPN pode estar bloqueando o Claude.',
+  'test.claude.unreachableAction': 'Se estiver na VPN da empresa, ela pode estar enviando todo o tráfego por um caminho que bloqueia o Claude.',
+  'test.claude.proxyAuth': 'O proxy {proxy} exige autenticação do Windows para chegar a {host}.',
+  'test.claude.tls': 'Falha de TLS ao falar com {host} ({code}).',
+  'it.claudeInspected': 'Olá, time de TI. Preciso usar o Claude (Anthropic) neste computador. Na rede atual, o tráfego para {hosts} passa por inspeção TLS com o certificado "{issuer}" e o Claude recusa a conexão. Vocês podem excluir os domínios *.anthropic.com e claude.ai da inspeção TLS (ou do túnel da VPN), ou instalar oficialmente o certificado raiz da empresa neste computador? Obrigado.',
+  'it.claudeBlocked': 'Olá, time de TI. Preciso usar o Claude (Anthropic) neste computador, mas a rede atual não deixa chegar a {hosts}. Vocês podem liberar os domínios *.anthropic.com e claude.ai (sem inspeção TLS), ou excluí-los do túnel da VPN? Obrigado.',
   'basis.403': 'Olá, time de Basis. Preciso de acesso de leitura ao ADT (ABAP Development Tools) no sistema {host}, mandante {client}, para o usuário {user}. Hoje o serviço /sap/bc/adt responde HTTP 403 (sem autorização). Podem verificar a SU53 desse usuário e conceder o objeto S_ADT_RES e a exibição de objetos de desenvolvimento (S_DEVELOP, atividade 03)? Obrigado.',
   'basis.404': 'Olá, time de Basis. No sistema {host}, mandante {client}, o serviço ICF /sap/bc/adt responde HTTP 404. Podem ativá-lo na SICF (default_host > sap > bc > adt)? É o mesmo serviço usado pelo Eclipse ADT. Obrigado.',
   'basis.weak': 'Olá, time de Basis. O certificado SSL do servidor {host} (PSE SSL Server na STRUST) usa chave ou assinatura fraca e é recusado por clientes modernos. Podem renová-lo com RSA de 2048 bits ou mais e SHA-256? Obrigado.',
@@ -141,7 +161,7 @@ const en: Record<Key, string> = {
   'cli.usage': [
     'Usage:',
     '  abap-adt-mcp serve --profile <ID>          MCP server for Claude (stdio)',
-    '  abap-adt-mcp test --profile <ID> [--json]  Step-by-step connection test',
+    '  abap-adt-mcp test --profile <ID> [--json] [--no-claude-check]  Step-by-step connection test',
     '  abap-adt-mcp profile add --id <ID> --name <name> --url <url> --client <client>',
     '                           --user <user> --env <DEV|QAS|PRD> [--lang <EN>] [--allow-http]',
     '  abap-adt-mcp profile list | show <ID> | remove <ID>',
@@ -218,6 +238,20 @@ const en: Record<Key, string> = {
   'test.mcp.ok': '{tools} tools available to Claude (disabled in this profile: {hidden}); the test search answered.',
   'test.mcp.fail': 'The MCP server failed: {message}',
   'test.basisText': 'Ready-to-send message for Basis:',
+  'test.itText': 'Ready-to-send message for IT:',
+  'test.step.claude': 'Access to Claude',
+  'test.claude.off': 'not checked in this run',
+  'test.claude.ok': 'Claude is reachable from this network ({hosts}).',
+  'test.claude.okInspected': 'Claude is reachable, but the network inspects the traffic (certificate from {issuer}, trusted on this Windows).',
+  'test.claude.inspected': 'The network is opening Claude traffic ({host}) with certificate "{issuer}", which this Windows does not trust. Claude will not work on this network.',
+  'test.claude.inspectedCa': 'Network certificate: {subject} | SHA-256: {fingerprint}',
+  'test.claude.inspectedAction': 'Ask IT to exclude the Anthropic domains from inspection, or to officially install the company certificate on this computer.',
+  'test.claude.unreachable': 'Could not reach {host} ({code}). The network or VPN may be blocking Claude.',
+  'test.claude.unreachableAction': 'If you are on the company VPN, it may be sending all traffic through a path that blocks Claude.',
+  'test.claude.proxyAuth': 'Proxy {proxy} requires Windows authentication to reach {host}.',
+  'test.claude.tls': 'TLS failure talking to {host} ({code}).',
+  'it.claudeInspected': 'Hello IT team. I need to use Claude (Anthropic) on this computer. On the current network, traffic to {hosts} goes through TLS inspection with certificate "{issuer}" and Claude refuses the connection. Could you exclude *.anthropic.com and claude.ai from TLS inspection (or from the VPN tunnel), or officially install the company root certificate on this computer? Thank you.',
+  'it.claudeBlocked': 'Hello IT team. I need to use Claude (Anthropic) on this computer, but the current network does not let it reach {hosts}. Could you allow *.anthropic.com and claude.ai (without TLS inspection), or exclude them from the VPN tunnel? Thank you.',
   'basis.403': 'Hello Basis team. I need read access to ADT (ABAP Development Tools) on system {host}, client {client}, for user {user}. The /sap/bc/adt service currently answers HTTP 403 (not authorized). Could you check SU53 for this user and grant authorization object S_ADT_RES plus display access to development objects (S_DEVELOP, activity 03)? Thank you.',
   'basis.404': 'Hello Basis team. On system {host}, client {client}, the ICF service /sap/bc/adt answers HTTP 404. Could you activate it in SICF (default_host > sap > bc > adt)? It is the same service used by Eclipse ADT. Thank you.',
   'basis.weak': 'Hello Basis team. The SSL certificate of server {host} (SSL Server PSE in STRUST) uses a weak key or signature and is refused by modern clients. Could you renew it with RSA 2048 bits or more and SHA-256? Thank you.',
