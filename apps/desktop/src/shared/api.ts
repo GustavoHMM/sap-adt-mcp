@@ -5,6 +5,13 @@ import type { RestartResult } from '@abap-adt-mcp/core/claude/restart';
 export type { Environment, Profile, ProfileProblem, TrustedCertificate, ClaudeStatus, ClientKind, ConnectResult, RestartResult };
 export type { ClientState, EntryState, ProfileClaudeState } from '@abap-adt-mcp/core/claude/integration';
 
+export interface UpdateStatus {
+  state: 'disabled' | 'idle' | 'checking' | 'none' | 'downloading' | 'ready' | 'error';
+  version?: string;
+  percent?: number;
+  message?: string;
+}
+
 /** Where the tray menu asks the window to go. */
 export interface NavigateTarget {
   screen: 'profiles' | 'test' | 'claude';
@@ -101,4 +108,10 @@ export interface DesktopApi {
   usageInstructions(profileId: string): Promise<string>;
   setDisabledTools(profileId: string, tools: string[]): Promise<ProfileView>;
   onNavigate(listener: (target: NavigateTarget) => void): () => void;
+  updateStatus(): Promise<UpdateStatus>;
+  installUpdate(): Promise<void>;
+  onUpdateStatus(listener: (status: UpdateStatus) => void): () => void;
+  getStartWithWindows(): Promise<boolean>;
+  setStartWithWindows(enabled: boolean): Promise<void>;
+  openNotices(): Promise<void>;
 }

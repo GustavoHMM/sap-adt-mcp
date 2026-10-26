@@ -9,6 +9,7 @@
     "@abap-adt-mcp/core": "0.1.0",
     "@fluentui/react-components": "9.74.10",
     "@fluentui/react-icons": "2.0.344",
+    "electron-updater": "6.8.11",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },

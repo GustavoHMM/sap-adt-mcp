@@ -187,6 +187,19 @@ const pt = {
   'about.language': 'Idioma do app',
   'about.langSystem': 'Seguir o Windows',
   'about.unavailable': 'indisponível',
+  'about.updates': 'Atualizações',
+  'about.notices': 'Licenças de terceiros',
+  'about.startWithWindows': 'Iniciar com o Windows (fica na bandeja)',
+  'update.disabled': 'Verificação automática desligada nesta cópia (desenvolvimento).',
+  'update.idle': 'Aguardando a primeira verificação.',
+  'update.checking': 'Procurando atualizações…',
+  'update.none': 'Você está na versão mais recente.',
+  'update.downloading': 'Baixando a versão {version}… {percent}%',
+  'update.ready': 'A versão {version} está pronta para instalar.',
+  'update.error': 'Não foi possível verificar atualizações agora; o app tenta de novo mais tarde.',
+  'update.installNow': 'Reiniciar e atualizar',
+  'update.bannerTitle': 'Atualização pronta',
+  'update.bannerBody': 'A versão {version} foi baixada. Perfis, senhas e conexões com o Claude continuam como estão.',
 };
 
 type Key = keyof typeof pt;
@@ -368,6 +381,19 @@ const en: Record<Key, string> = {
   'about.language': 'App language',
   'about.langSystem': 'Follow Windows',
   'about.unavailable': 'unavailable',
+  'about.updates': 'Updates',
+  'about.notices': 'Third-party licenses',
+  'about.startWithWindows': 'Start with Windows (stays in the tray)',
+  'update.disabled': 'Automatic check is off in this copy (development).',
+  'update.idle': 'Waiting for the first check.',
+  'update.checking': 'Looking for updates…',
+  'update.none': 'You have the latest version.',
+  'update.downloading': 'Downloading version {version}… {percent}%',
+  'update.ready': 'Version {version} is ready to install.',
+  'update.error': 'Could not check for updates right now; the app will try again later.',
+  'update.installNow': 'Restart and update',
+  'update.bannerTitle': 'Update ready',
+  'update.bannerBody': 'Version {version} was downloaded. Profiles, passwords and Claude connections stay as they are.',
 };
 
 export type UiKey = Key;

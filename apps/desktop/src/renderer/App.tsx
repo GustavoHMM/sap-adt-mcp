@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FluentProvider, Spinner, Subtitle1, Tab, TabList, makeStyles, tokens, webDarkTheme, webLightTheme } from '@fluentui/react-components';
+import { Button, FluentProvider, MessageBar, MessageBarActions, MessageBarBody, MessageBarTitle, Spinner, Subtitle1, Tab, TabList, makeStyles, tokens, webDarkTheme, webLightTheme } from '@fluentui/react-components';
 import { Beaker20Regular, Info20Regular, People20Regular, PlugConnected20Regular } from '@fluentui/react-icons';
 import type { AppInfo, Lang, ProfileView } from '../shared/api.ts';
 import { api } from './api.ts';
-import { I18nProvider, makeTranslate } from './i18n.tsx';
+import { I18nProvider, makeTranslate, useI18n } from './i18n.tsx';
 import { ClaudeScreen } from './ClaudeScreen.tsx';
-import { AboutScreen, ProfilesScreen, TestScreen } from './screens.tsx';
+import { AboutScreen, ProfilesScreen, TestScreen, useUpdateStatus } from './screens.tsx';
 import { Wizard } from './Wizard.tsx';
 
 const useStyles = makeStyles({
@@ -29,6 +29,25 @@ function useDarkMode(): boolean {
     return () => m.removeEventListener('change', listener);
   }, []);
   return dark;
+}
+
+function UpdateBanner() {
+  const { t } = useI18n();
+  const update = useUpdateStatus();
+  if (update.state !== 'ready') return null;
+  return (
+    <MessageBar intent="success" style={{ marginBottom: 16 }}>
+      <MessageBarBody>
+        <MessageBarTitle>{t('update.bannerTitle')}</MessageBarTitle>
+        {t('update.bannerBody', { version: update.version ?? '' })}
+      </MessageBarBody>
+      <MessageBarActions>
+        <Button appearance="primary" onClick={() => void api.installUpdate()}>
+          {t('update.installNow')}
+        </Button>
+      </MessageBarActions>
+    </MessageBar>
+  );
 }
 
 export function App() {
@@ -106,6 +125,7 @@ export function App() {
               </TabList>
             </nav>
             <main className={styles.content}>
+              <UpdateBanner />
               {screen === 'profiles' && (
                 <ProfilesScreen
                   info={info}

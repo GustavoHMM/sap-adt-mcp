@@ -1,15 +1,18 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, clipboard, ipcMain, Menu, session, shell, type IpcMainInvokeEvent } from 'electron';
-import { claudeStatus, connectProfile, disconnectProfile, restoreBackup, type ClientKind } from '@abap-adt-mcp/core/claude/integration';
+import { claudeStatus, connectProfile, disconnectProfile, repairOwnedEntries, restoreBackup, type ClientKind, type ServerCommand } from '@abap-adt-mcp/core/claude/integration';
 import { detectClaudeDesktop } from '@abap-adt-mcp/core/claude/desktop';
+import { listProcesses } from '@abap-adt-mcp/core/claude/processes';
 import { restartClaudeDesktop } from '@abap-adt-mcp/core/claude/restart';
+import { createLogger } from '@abap-adt-mcp/core/log';
 import { defaultSapLanguage, langFromLocale, t, type Lang } from '@abap-adt-mcp/core/messages';
 import { effectiveDisabledTools, getProfile, loadProfiles, suggestProfileId, type Environment } from '@abap-adt-mcp/core/profiles';
+import { deployRuntime, isOurExecutable, stableExe } from '@abap-adt-mcp/core/runtime';
 import { loadSettings, saveSettings } from '@abap-adt-mcp/core/settings';
 import { usageInstructions } from '@abap-adt-mcp/core/tools';
 import { APP_VERSION } from '@abap-adt-mcp/core/version';
-import type { AppInfo, NavigateTarget, SaveProfileRequest, TestEvent } from '../shared/api.ts';
+import type { AppInfo, NavigateTarget, SaveProfileRequest, TestEvent, UpdateStatus } from '../shared/api.ts';
 import { cliVersion, locateCli, runCliTest, type RunningTest } from './cli.ts';
 import {
   deleteProfileEverywhere,
@@ -21,11 +24,14 @@ import {
   trustCertificateFor,
 } from './services.ts';
 import { createTray } from './tray.ts';
+import { startUpdater } from './updater.ts';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const rendererFile = path.join(__dirname, 'renderer', 'index.html');
 const rendererUrl = pathToFileURL(rendererFile).href;
 const CLAUDE_DOWNLOAD = 'https://claude.ai/download';
+const startHidden = process.argv.includes('--hidden');
+const log = createLogger('app');
 
 app.enableSandbox();
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -34,6 +40,8 @@ let mainWindow: BrowserWindow | null = null;
 let quitting = false;
 let trayHintShown = false;
 let tray: ReturnType<typeof createTray> | null = null;
+let updateState: UpdateStatus = { state: 'disabled' };
+let updater: ReturnType<typeof startUpdater> | null = null;
 const runningTests = new Map<string, RunningTest>();
 
 function systemLocale(): string {
@@ -46,9 +54,36 @@ function currentLang(): Lang {
   return loadSettings().language ?? langFromLocale(systemLocale());
 }
 
-/** The same executable runs the connection test and is what Claude configs point to. */
+/** The executable the connection test runs (the copy shipped with the app, or the dev build). */
 const cli = () => locateCli({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, repoRoot });
 const cliEnv = (): NodeJS.ProcessEnv => ({ ...process.env, ABAP_ADT_MCP_LANG: currentLang() });
+
+/** What Claude configs point to: the stable runtime\current path once installed, the dev build otherwise. */
+const claudeServer = (): ServerCommand => (app.isPackaged ? { command: stableExe(), args: [] } : cli());
+const installDir = () => path.dirname(process.execPath);
+const noticesFile = () => (app.isPackaged ? path.join(process.resourcesPath, 'THIRD-PARTY-NOTICES.md') : path.join(repoRoot, 'build', 'THIRD-PARTY-NOTICES.md'));
+
+/** A runtime version folder is in use while some process runs an exe from it (a Claude session). */
+function folderInUse(dir: string): boolean {
+  const prefix = path.resolve(dir).toLowerCase() + path.sep;
+  try {
+    return listProcesses().some((p) => p.path?.toLowerCase().startsWith(prefix));
+  } catch {
+    return true;
+  }
+}
+
+/** Installed app: copy this version's server to runtime\<version>, switch "current", fix our entries. */
+async function prepareRuntime(): Promise<void> {
+  if (!app.isPackaged) return;
+  try {
+    const deployed = deployRuntime(path.join(process.resourcesPath, 'cli'), APP_VERSION, folderInUse);
+    const repair = await repairOwnedEntries(loadProfiles(), claudeServer(), (cmd) => isOurExecutable(cmd, [installDir()]));
+    log.info('runtime', { version: deployed.version, switched: deployed.switched, removedOld: deployed.removedOld, repaired: repair.repaired });
+  } catch (e) {
+    log.error('runtime-failed', { error: (e as Error).message });
+  }
+}
 
 /** Only our own page may call the main process. */
 function handle<A extends unknown[], R>(channel: string, fn: (...args: A) => R | Promise<R>): void {
@@ -82,6 +117,18 @@ function registerIpc(): void {
     saveSettings(settings);
     tray?.refresh();
   });
+  handle('app:getStartWithWindows', () => app.getLoginItemSettings({ args: ['--hidden'] }).openAtLogin);
+  handle('app:setStartWithWindows', (enabled: unknown) => app.setLoginItemSettings({ openAtLogin: enabled === true, args: ['--hidden'] }));
+  handle('app:openNotices', async () => {
+    await shell.openPath(noticesFile());
+  });
+  handle('update:status', () => updateState);
+  handle('update:install', () => {
+    if (updateState.state === 'ready') {
+      quitting = true;
+      updater?.installNow();
+    }
+  });
   handle('profiles:list', () => listProfileViews());
   handle('profiles:suggestId', (env: Environment, client: string) => suggestProfileId(env, client, loadProfiles().map((p) => p.id)));
   handle('url:normalize', (text: string) => normalizeUrlView(String(text ?? ''), currentLang()));
@@ -109,11 +156,11 @@ function registerIpc(): void {
   handle('test:cancel', (runId: string) => runningTests.get(String(runId))?.cancel());
   handle('clipboard:write', (text: string) => clipboard.writeText(String(text)));
 
-  handle('claude:status', () => claudeStatus(loadProfiles(), cli()));
+  handle('claude:status', () => claudeStatus(loadProfiles(), claudeServer()));
   handle('claude:connect', async (id: string, kind: unknown, confirmation: unknown) => {
     const profile = getProfile(String(id));
     if (!profile) throw new Error('unknown profile');
-    return connectProfile(profile, asKind(kind), cli(), { confirmation: typeof confirmation === 'string' ? confirmation : undefined });
+    return connectProfile(profile, asKind(kind), claudeServer(), { confirmation: typeof confirmation === 'string' ? confirmation : undefined });
   });
   handle('claude:disconnect', (id: string, kind: unknown) => disconnectProfile(String(id), asKind(kind)));
   handle('claude:restart', async () => {
@@ -131,7 +178,7 @@ function registerIpc(): void {
 }
 
 function showWindow(target?: NavigateTarget): void {
-  if (!mainWindow) createWindow();
+  if (!mainWindow) createWindow(true);
   if (!mainWindow) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show();
@@ -139,7 +186,7 @@ function showWindow(target?: NavigateTarget): void {
   if (target) mainWindow.webContents.send('app:navigate', target);
 }
 
-function createWindow(): void {
+function createWindow(visible: boolean): void {
   mainWindow = new BrowserWindow({
     width: 1040,
     height: 760,
@@ -148,6 +195,7 @@ function createWindow(): void {
     title: 'ABAP ADT MCP',
     show: false,
     autoHideMenuBar: true,
+    icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -162,7 +210,7 @@ function createWindow(): void {
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url !== rendererUrl) event.preventDefault();
   });
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  if (visible) mainWindow.once('ready-to-show', () => mainWindow?.show());
   // Closing the window keeps the app in the tray; "Quit" in the tray really exits.
   mainWindow.on('close', (event) => {
     if (quitting || !tray) return;
@@ -189,11 +237,13 @@ app.on('window-all-closed', () => {
   if (!tray) app.quit();
 });
 
-void app.whenReady().then(() => {
+void app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+  await prepareRuntime();
   registerIpc();
   tray = createTray({
+    iconPath: path.join(__dirname, 'tray.png'),
     show: showWindow,
     quit: () => {
       quitting = true;
@@ -201,5 +251,12 @@ void app.whenReady().then(() => {
     },
     lang: currentLang,
   });
-  createWindow();
+  // "Start with Windows" launches with --hidden: tray only, the window opens on demand.
+  createWindow(!startHidden);
+  if (app.isPackaged && process.env.ABAP_ADT_MCP_NO_UPDATES !== '1') {
+    updater = startUpdater((status) => {
+      updateState = status;
+      mainWindow?.webContents.send('update:status', status);
+    });
+  }
 });

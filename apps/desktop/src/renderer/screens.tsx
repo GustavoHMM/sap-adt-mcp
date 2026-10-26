@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Badge,
   Body1,
@@ -20,17 +20,18 @@ import {
   Option,
   Radio,
   RadioGroup,
+  Switch,
   Subtitle2,
   Title3,
   makeStyles,
   tokens,
 } from '@fluentui/react-components';
 import { Add20Regular, Delete20Regular, Edit20Regular, PlugConnected20Regular } from '@fluentui/react-icons';
-import type { AppInfo, Lang, ProfileView } from '../shared/api.ts';
+import type { AppInfo, Lang, ProfileView, UpdateStatus } from '../shared/api.ts';
 import { api } from './api.ts';
 import { ProfileForm } from './ProfileForm.tsx';
 import { TestPanel } from './TestPanel.tsx';
-import { useI18n } from './i18n.tsx';
+import { useI18n, type UiKey } from './i18n.tsx';
 
 const useStyles = makeStyles({
   screen: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalL, maxWidth: '820px' },
@@ -177,6 +178,11 @@ export function TestScreen({ profiles, selectedId, onSelect, reload }: { profile
 export function AboutScreen({ info, onLanguage }: { info: AppInfo; onLanguage: (lang: Lang | null) => void }) {
   const { t } = useI18n();
   const styles = useStyles();
+  const update = useUpdateStatus();
+  const [startWithWindows, setStartWithWindows] = useState<boolean | null>(null);
+  useEffect(() => {
+    void api.getStartWithWindows().then(setStartWithWindows);
+  }, []);
   const server = info.cli
     ? `${info.cli.upstream.name} ${info.cli.upstream.version}${info.cli.upstream.commit ? ` (git ${info.cli.upstream.commit.slice(0, 7)})` : ''}`
     : t('about.unavailable');
@@ -190,9 +196,33 @@ export function AboutScreen({ info, onLanguage }: { info: AppInfo; onLanguage: (
         <Body1 data-testid="upstream-version">{server}</Body1>
         <Body1>{t('about.runtime')}</Body1>
         <Body1>{info.cli ? `Node ${info.cli.node} · ${info.cli.arch}` : t('about.unavailable')}</Body1>
+        <Body1>{t('about.updates')}</Body1>
+        <div>
+          <Body1>{t(`update.${update.state}` as UiKey, { version: update.version ?? '', percent: update.percent ?? 0 })}</Body1>
+          {update.state === 'ready' && (
+            <div style={{ marginTop: 8 }}>
+              <Button appearance="primary" onClick={() => void api.installUpdate()}>
+                {t('update.installNow')}
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
       <Body1>{t('about.credit')}</Body1>
       <Body1>{t('about.privacy')}</Body1>
+      <div>
+        <Button onClick={() => void api.openNotices()}>{t('about.notices')}</Button>
+      </div>
+      {startWithWindows !== null && (
+        <Switch
+          checked={startWithWindows}
+          label={t('about.startWithWindows')}
+          onChange={(_, d) => {
+            setStartWithWindows(d.checked);
+            void api.setStartWithWindows(d.checked);
+          }}
+        />
+      )}
       <Field label={t('about.language')}>
         <RadioGroup value={info.langSetting ?? 'system'} onChange={(_, d) => onLanguage(d.value === 'system' ? null : (d.value as Lang))}>
           <Radio value="system" label={t('about.langSystem')} />
@@ -202,4 +232,14 @@ export function AboutScreen({ info, onLanguage }: { info: AppInfo; onLanguage: (
       </Field>
     </div>
   );
+}
+
+/** Update state from the main process, kept live. */
+export function useUpdateStatus(): UpdateStatus {
+  const [status, setStatus] = useState<UpdateStatus>({ state: 'disabled' });
+  useEffect(() => {
+    void api.updateStatus().then(setStatus);
+    return api.onUpdateStatus(setStatus);
+  }, []);
+  return status;
 }

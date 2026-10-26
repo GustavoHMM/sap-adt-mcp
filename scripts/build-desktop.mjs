@@ -48,6 +48,7 @@ await esbuild.build({
   external: ['electron'],
 });
 await viteBuild({ configFile: path.join(desktop, 'vite.config.ts'), logLevel: 'warn' });
+for (const icon of ['icon.png', 'tray.png']) fs.copyFileSync(path.join(desktop, 'build-resources', icon), path.join(out, icon));
 console.log('[desktop] built apps/desktop/out');
 
 if (values.run) {

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { DesktopApi, NavigateTarget, TestEvent } from '../shared/api.ts';
+import type { DesktopApi, NavigateTarget, TestEvent, UpdateStatus } from '../shared/api.ts';
 
 // The only bridge between the page and the main process: a fixed list of calls.
 const api: DesktopApi = {
@@ -33,6 +33,16 @@ const api: DesktopApi = {
     ipcRenderer.on('app:navigate', handler);
     return () => ipcRenderer.removeListener('app:navigate', handler);
   },
+  updateStatus: () => ipcRenderer.invoke('update:status'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdateStatus: (listener) => {
+    const handler = (_event: IpcRendererEvent, status: UpdateStatus) => listener(status);
+    ipcRenderer.on('update:status', handler);
+    return () => ipcRenderer.removeListener('update:status', handler);
+  },
+  getStartWithWindows: () => ipcRenderer.invoke('app:getStartWithWindows'),
+  setStartWithWindows: (enabled) => ipcRenderer.invoke('app:setStartWithWindows', enabled),
+  openNotices: () => ipcRenderer.invoke('app:openNotices'),
 };
 
 contextBridge.exposeInMainWorld('api', api);
