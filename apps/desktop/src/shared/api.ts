@@ -1,6 +1,15 @@
 import type { Environment, Profile, ProfileProblem, TrustedCertificate } from '@abap-adt-mcp/core/profiles';
+import type { ClaudeStatus, ClientKind, ConnectResult } from '@abap-adt-mcp/core/claude/integration';
+import type { RestartResult } from '@abap-adt-mcp/core/claude/restart';
 
-export type { Environment, Profile, ProfileProblem, TrustedCertificate };
+export type { Environment, Profile, ProfileProblem, TrustedCertificate, ClaudeStatus, ClientKind, ConnectResult, RestartResult };
+export type { ClientState, EntryState, ProfileClaudeState } from '@abap-adt-mcp/core/claude/integration';
+
+/** Where the tray menu asks the window to go. */
+export interface NavigateTarget {
+  screen: 'profiles' | 'test' | 'claude';
+  profileId?: string;
+}
 export type Lang = 'pt' | 'en';
 
 export interface AppInfo {
@@ -83,4 +92,13 @@ export interface DesktopApi {
   cancelTest(runId: string): Promise<void>;
   onTestEvent(listener: (event: TestEvent) => void): () => void;
   copyText(text: string): Promise<void>;
+  claudeStatus(): Promise<ClaudeStatus>;
+  connectClaude(profileId: string, kind: ClientKind, confirmation?: string): Promise<ConnectResult>;
+  disconnectClaude(profileId: string, kind: ClientKind): Promise<{ restartSuggested: boolean }>;
+  restartClaudeDesktop(): Promise<RestartResult | { ok: false; reason: 'not-installed' }>;
+  restoreClaudeBackup(kind: ClientKind): Promise<boolean>;
+  openClaudeDownload(): Promise<void>;
+  usageInstructions(profileId: string): Promise<string>;
+  setDisabledTools(profileId: string, tools: string[]): Promise<ProfileView>;
+  onNavigate(listener: (target: NavigateTarget) => void): () => void;
 }

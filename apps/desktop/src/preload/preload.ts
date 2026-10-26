@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { DesktopApi, TestEvent } from '../shared/api.ts';
+import type { DesktopApi, NavigateTarget, TestEvent } from '../shared/api.ts';
 
 // The only bridge between the page and the main process: a fixed list of calls.
 const api: DesktopApi = {
@@ -20,6 +20,19 @@ const api: DesktopApi = {
     return () => ipcRenderer.removeListener('test:event', handler);
   },
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
+  claudeStatus: () => ipcRenderer.invoke('claude:status'),
+  connectClaude: (profileId, kind, confirmation) => ipcRenderer.invoke('claude:connect', profileId, kind, confirmation),
+  disconnectClaude: (profileId, kind) => ipcRenderer.invoke('claude:disconnect', profileId, kind),
+  restartClaudeDesktop: () => ipcRenderer.invoke('claude:restart'),
+  restoreClaudeBackup: (kind) => ipcRenderer.invoke('claude:restore', kind),
+  openClaudeDownload: () => ipcRenderer.invoke('claude:download'),
+  usageInstructions: (profileId) => ipcRenderer.invoke('claude:usage', profileId),
+  setDisabledTools: (profileId, tools) => ipcRenderer.invoke('profiles:setTools', profileId, tools),
+  onNavigate: (listener) => {
+    const handler = (_event: IpcRendererEvent, target: NavigateTarget) => listener(target);
+    ipcRenderer.on('app:navigate', handler);
+    return () => ipcRenderer.removeListener('app:navigate', handler);
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

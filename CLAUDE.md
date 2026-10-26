@@ -35,7 +35,13 @@ App para Windows que conecta o Claude (Desktop e Code) ao SAP via ADT, empacotan
 | Acesso ao Claude | O teste sempre termina com a etapa "Acesso ao Claude" (`packages/core/src/claude-check.ts`): só DNS, TCP, handshake TLS e um GET anônimo para `api.anthropic.com` e `claude.ai`. Detecta VPN que bloqueia ou que reassina o tráfego com uma CA da empresa (caso real: VPN corporativa com inspeção TLS) e gera texto para o TI. Resultado `warn`, nunca bloqueia o assistente. |
 | npm 11 | Scripts de instalação ficam bloqueados por padrão. `allowScripts` no `package.json`: Electron permitido; esbuild e koffi negados (os binários prontos vêm em subpacotes). Num workspace, o `npm rebuild` não baixa o Electron, então o `build-desktop.mjs` chama o instalador dele quando falta o binário. |
 | Ganchos de teste | `ABAP_ADT_MCP_HOME` (pasta de dados), `ABAP_ADT_MCP_CREDENTIAL_NAMESPACE` (isola o Gerenciador de Credenciais, porque um perfil de teste "QAS400" sobrescreveria a senha real), `ABAP_ADT_MCP_CLAUDE_CHECK=off` (sem internet), `ABAP_ADT_MCP_CLI_SOURCE` (o app usa a CLI do código-fonte) e `ABAP_ADT_MCP_CLI_EXE` (testes contra o exe). |
-| Teste da janela | Playwright `connectOverCDP` com `--remote-debugging-port`. O `electron.launch()` do Playwright 1.64 cai no Electron 45 (usa `--inspect`). |
+| Teste da janela | Playwright `connectOverCDP` com `--remote-debugging-port`. O `electron.launch()` do Playwright 1.64 cai no Electron 45 (usa `--inspect`). O Electron também quebra com `USERPROFILE` simulado, então o teste da janela recebe o perfil real e o Claude Code simulado vem por `CLAUDE_CONFIG_DIR`. |
+| Claude Desktop | `packages/core/src/claude/desktop.ts`. MSIX: instalado quando existe `%LOCALAPPDATA%\Packages\Claude_<id>`. A config fica em `Claude-Data\claude_<id>` (versões novas) ou em `Packages\...\LocalCache\Roaming\Claude`, ignorando pastas com o marcador `.user-data-left.*`. Clássico: `%APPDATA%\Claude`. Edição só de `mcpServers`, com backup (os 10 últimos) e gravação atômica. JSON corrompido nunca é sobrescrito: oferecemos o backup. |
+| Reiniciar o Claude Desktop | Só com permissão (interrompe conversas e a aba Code). Os processos são achados **pelo caminho**: `WindowsApps\Claude_*__<publisher id>\app\claude.exe` ou `AnthropicClaude\app-*`. A árvore do processo principal é encerrada (`taskkill /T /F`), e o app é reaberto por `shell:AppsFolder\<família>!Claude` (MSIX) ou pelo `claude.exe` do instalador. `ABAP_ADT_MCP_DISABLE_CLAUDE_RESTART=1` desliga o reinício (todos os testes). |
+| Claude Code | Escopo de usuário sempre. Com a CLI (`claude.exe` no PATH, em `~/.local/bin` ou na cópia do Desktop em `Claude-Data\...\claude-code\<versão>`), usamos `claude mcp add/remove --scope user`. Sem ela, editamos o `.claude.json` com backup. O arquivo fica em `CLAUDE_CONFIG_DIR` ou na pasta do usuário. |
+| Estado das conexões | Conectado / Não conectado / Desatualizado (aponta para outro exe) / Removido por outro programa (a intenção fica em `settings.json > claude`). A prova de uso fica por cliente: `state/serve-<perfil>.<desktop|code>.json`, a partir do `clientInfo` (`claude-code` ou `claude-ai`). |
+| PRD | Para conectar um perfil PRD, é preciso digitar o id do perfil. A checagem é feita no núcleo (`connectProfile`), não só na janela. |
+| Bandeja | Fechar a janela esconde o app na bandeja (com aviso na primeira vez). O menu tem Abrir, Testar <perfil>, Conexões com o Claude e Sair. O ícone é desenhado em código até existir o ícone do produto. |
 
 ## Estrutura
 
@@ -47,8 +53,8 @@ App para Windows que conecta o Claude (Desktop e Code) ao SAP via ADT, empacotan
 
 ## Pendências conhecidas
 
-- Integração automática com o Claude e instalador (fases 3 e 4). A interface da fase 2 mostra "em breve" no passo do Claude.
-- Ícone na bandeja do sistema (fase 3 ou 5).
+- Instalador, caminho estável do exe para as configs do Claude (`runtime\current`) e atualização automática (fase 4). Até lá, as configs apontam para `build\cli\win-<arq>\abap-adt-mcp.exe`.
+- Ícone definitivo do produto (fase 4 ou 5).
 - VPN da empresa: túnel completo com inspeção TLS (CA própria da empresa). Na VM de desenvolvimento, Claude e SAP não funcionam juntos até o TI da empresa liberar a exceção ou fornecer a CA oficial. Validações no QAS400 real são feitas em janelas curtas com VPN.
 - Manifesto de integridade do upstream verificado no `serve` (fase 4, junto com o empacotamento).
 - Assinatura de código: certificado de pessoa física, a decidir (fase 4).

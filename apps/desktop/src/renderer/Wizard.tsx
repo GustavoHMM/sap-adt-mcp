@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Body1, Button, MessageBar, MessageBarBody, MessageBarTitle, Subtitle2, Title2, makeStyles, tokens } from '@fluentui/react-components';
+import { Body1, Button, Spinner, Subtitle2, Title2, makeStyles, tokens } from '@fluentui/react-components';
 import type { AppInfo, ProfileView } from '../shared/api.ts';
+import { ClaudeDialogs, ClientBanners, ProfileClaudeCard, useClaudeActions, useClaudeStatus } from './ClaudeScreen.tsx';
 import { ProfileForm } from './ProfileForm.tsx';
 import { TestPanel } from './TestPanel.tsx';
 import { useI18n, type UiKey } from './i18n.tsx';
@@ -16,6 +17,30 @@ const useStyles = makeStyles({
   actions: { display: 'flex', gap: tokens.spacingHorizontalS },
   question: { fontSize: tokens.fontSizeBase400, fontWeight: tokens.fontWeightSemibold },
 });
+
+function ClaudeStep({ profile, onBack, onNext }: { profile: ProfileView; onBack: () => void; onNext: () => void }) {
+  const { t } = useI18n();
+  const styles = useStyles();
+  const { status, refresh } = useClaudeStatus();
+  const actions = useClaudeActions(status, refresh);
+  if (!status) return <Spinner />;
+  const states = status.profiles[profile.id];
+  const connected = states && (states.desktop.state === 'connected' || states.code.state === 'connected');
+  return (
+    <>
+      <Body1 block>{t('wizard.claudeIntro')}</Body1>
+      <ClientBanners status={status} refresh={refresh} />
+      <ProfileClaudeCard profile={profile} status={status} actions={actions} onProfileChanged={() => void refresh()} />
+      <ClaudeDialogs actions={actions} />
+      <div className={styles.actions}>
+        <Button onClick={onBack}>{t('common.back')}</Button>
+        <Button appearance={connected ? 'primary' : 'secondary'} onClick={onNext}>
+          {connected ? t('common.continue') : t('wizard.skip')}
+        </Button>
+      </div>
+    </>
+  );
+}
 
 export function Wizard({ info, onDone }: { info: AppInfo; onDone: () => void }) {
   const { t } = useI18n();
@@ -67,22 +92,7 @@ export function Wizard({ info, onDone }: { info: AppInfo; onDone: () => void }) 
         </>
       )}
 
-      {step === 'claude' && (
-        <>
-          <MessageBar intent="info">
-            <MessageBarBody>
-              <MessageBarTitle>{t('claude.soonTitle')}</MessageBarTitle>
-              {t('claude.soonBody')}
-            </MessageBarBody>
-          </MessageBar>
-          <div className={styles.actions}>
-            <Button onClick={() => setStep('test')}>{t('common.back')}</Button>
-            <Button appearance="primary" onClick={() => setStep('done')}>
-              {t('common.continue')}
-            </Button>
-          </div>
-        </>
-      )}
+      {step === 'claude' && profile && <ClaudeStep profile={profile} onBack={() => setStep('test')} onNext={() => setStep('done')} />}
 
       {step === 'done' && profile && (
         <>

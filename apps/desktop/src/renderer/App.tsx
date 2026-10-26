@@ -4,7 +4,8 @@ import { Beaker20Regular, Info20Regular, People20Regular, PlugConnected20Regular
 import type { AppInfo, Lang, ProfileView } from '../shared/api.ts';
 import { api } from './api.ts';
 import { I18nProvider, makeTranslate } from './i18n.tsx';
-import { AboutScreen, ClaudeScreen, ProfilesScreen, TestScreen } from './screens.tsx';
+import { ClaudeScreen } from './ClaudeScreen.tsx';
+import { AboutScreen, ProfilesScreen, TestScreen } from './screens.tsx';
 import { Wizard } from './Wizard.tsx';
 
 const useStyles = makeStyles({
@@ -49,6 +50,17 @@ export function App() {
       setWizard(p.length === 0);
     })();
   }, []);
+
+  // The tray menu can open a profile's test or the Claude screen.
+  useEffect(
+    () =>
+      api.onNavigate((target) => {
+        setWizard(false);
+        setScreen(target.screen);
+        if (target.profileId) setTestId(target.profileId);
+      }),
+    [],
+  );
 
   const changeLanguage = async (lang: Lang | null) => {
     await api.setLanguage(lang);
@@ -106,7 +118,7 @@ export function App() {
                 />
               )}
               {screen === 'test' && <TestScreen profiles={profiles} selectedId={testId} onSelect={setTestId} reload={reload} />}
-              {screen === 'claude' && <ClaudeScreen />}
+              {screen === 'claude' && <ClaudeScreen profiles={profiles} reload={reload} />}
               {screen === 'about' && <AboutScreen info={info} onLanguage={(l) => void changeLanguage(l)} />}
             </main>
           </div>

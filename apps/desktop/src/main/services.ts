@@ -3,7 +3,9 @@ import path from 'node:path';
 import { saveTrustedCertificate } from '@abap-adt-mcp/core/certs';
 import { deletePassword, getPassword, setPassword } from '@abap-adt-mcp/core/credentials';
 import { t, type Lang } from '@abap-adt-mcp/core/messages';
-import { certsDir, stateDir } from '@abap-adt-mcp/core/paths';
+import { disconnectProfile, forgetProfile } from '@abap-adt-mcp/core/claude/integration';
+import { certsDir } from '@abap-adt-mcp/core/paths';
+import { removeServeRecords } from '@abap-adt-mcp/core/state';
 import {
   effectiveDisabledTools,
   getProfile,
@@ -81,19 +83,38 @@ export function saveProfileRequest(request: SaveProfileRequest): SaveProfileResu
   return { ok: true, profile: toView(profile) };
 }
 
-/** Removes the profile together with its password, trusted certificate and usage record. */
-export function deleteProfileEverywhere(id: string): void {
+/** Removes the profile together with its Claude entries, password, trusted certificate and usage records. */
+export async function deleteProfileEverywhere(id: string): Promise<{ restartSuggested: boolean }> {
   const profile = getProfile(id);
-  if (!profile) return;
+  if (!profile) return { restartSuggested: false };
+  let restartSuggested = false;
+  for (const kind of ['desktop', 'code'] as const) {
+    try {
+      restartSuggested = (await disconnectProfile(profile.id, kind)).restartSuggested || restartSuggested;
+    } catch {
+      // A broken Claude config must not keep the profile alive; status will show it.
+    }
+  }
+  forgetProfile(profile.id);
   try {
     deletePassword(profile.id);
   } catch {
     // never saved
   }
   removeProfile(profile.id);
-  for (const file of [path.join(certsDir(), `${profile.id}.pem`), path.join(stateDir(), `serve-${profile.id}.json`)]) {
-    fs.rmSync(file, { force: true });
-  }
+  fs.rmSync(path.join(certsDir(), `${profile.id}.pem`), { force: true });
+  removeServeRecords(profile.id);
+  return { restartSuggested };
+}
+
+/** Tools hidden from Claude for this profile; names must be strings, unknown ones are kept (future upstream tools). */
+export function setDisabledTools(id: string, tools: unknown): ProfileView {
+  const profile = getProfile(id);
+  if (!profile) throw new Error('unknown profile');
+  const list = Array.isArray(tools) ? [...new Set(tools.filter((t): t is string => typeof t === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(t)))] : [];
+  const updated = { ...profile, disabledTools: list };
+  saveProfile(updated);
+  return toView(updated);
 }
 
 export function setProfilePassword(id: string, password: string): void {

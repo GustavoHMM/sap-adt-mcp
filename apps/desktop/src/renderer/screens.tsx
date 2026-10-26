@@ -174,22 +174,6 @@ export function TestScreen({ profiles, selectedId, onSelect, reload }: { profile
   );
 }
 
-export function ClaudeScreen() {
-  const { t } = useI18n();
-  const styles = useStyles();
-  return (
-    <div className={styles.screen}>
-      <Title3 as="h1">{t('claude.title')}</Title3>
-      <MessageBar intent="info">
-        <MessageBarBody>
-          <MessageBarTitle>{t('claude.soonTitle')}</MessageBarTitle>
-          {t('claude.soonBody')}
-        </MessageBarBody>
-      </MessageBar>
-    </div>
-  );
-}
-
 export function AboutScreen({ info, onLanguage }: { info: AppInfo; onLanguage: (lang: Lang | null) => void }) {
   const { t } = useI18n();
   const styles = useStyles();
