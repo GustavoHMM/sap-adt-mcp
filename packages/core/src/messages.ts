@@ -23,7 +23,7 @@ export function defaultSapLanguage(locale: string = Intl.DateTimeFormat().resolv
 
 const pt = {
   // Guidance appended to tool errors that Claude shows to the person
-  'relay.disabled': 'A ferramenta {tool} está desativada no perfil {profile}. Para usá-la, ative-a no app ABAP ADT MCP, em Perfis > {profile} > Ferramentas.',
+  'relay.disabled': 'A ferramenta {tool} está desativada no perfil {profile}. Para usá-la, abra o app ABAP ADT MCP, vá à tela Claude e use o botão Ferramentas do perfil {profile}.',
   'relay.http401': 'O SAP recusou o usuário ou a senha do perfil {profile} (HTTP 401). A senha pode estar errada ou expirada, ou o usuário pode estar bloqueado. Atualize a senha no app ABAP ADT MCP; se continuar, peça ao Basis para verificar o usuário.',
   'relay.http403': 'O usuário do perfil {profile} não tem autorização para esta operação no ADT (HTTP 403). Rode o teste de conexão no app ABAP ADT MCP para gerar um texto pronto para o time de Basis.',
   'relay.http404': 'O SAP respondeu 404: o objeto não foi encontrado com esse nome, ou este recurso do ADT não existe nesta versão do SAP. Confira o nome e o tipo do objeto.',
@@ -154,7 +154,7 @@ const pt = {
 type Key = keyof typeof pt;
 
 const en: Record<Key, string> = {
-  'relay.disabled': 'The {tool} tool is disabled for profile {profile}. To use it, enable it in the ABAP ADT MCP app under Profiles > {profile} > Tools.',
+  'relay.disabled': 'The {tool} tool is disabled for profile {profile}. To use it, open the ABAP ADT MCP app, go to the Claude screen and use the Tools button of profile {profile}.',
   'relay.http401': 'SAP rejected the user or password of profile {profile} (HTTP 401). The password may be wrong or expired, or the user may be locked. Update the password in the ABAP ADT MCP app; if it persists, ask Basis to check the user.',
   'relay.http403': 'The user of profile {profile} is not authorized for this ADT operation (HTTP 403). Run the connection test in the ABAP ADT MCP app to get a ready-to-send message for Basis.',
   'relay.http404': 'SAP answered 404: no object with that name was found, or this ADT resource does not exist in this SAP release. Check the object name and type.',

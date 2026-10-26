@@ -5,7 +5,7 @@ Conecta o **Claude** (Claude Desktop e Claude Code) ao seu **SAP**, para você p
 - **Somente leitura.** O Claude lê código e definições; nada é alterado no SAP.
 - **Sem configuração técnica.** Um assistente pede os dados do SAP, testa a conexão e liga o Claude com um clique.
 - **Senha protegida.** Fica só no Gerenciador de Credenciais do Windows, nunca em arquivos.
-- **Sem telemetria.** O app só se conecta ao SAP que você configurou e ao GitHub, para buscar atualizações.
+- **Sem telemetria.** O app só se conecta ao SAP que você configurou, ao GitHub (para buscar atualizações) e, durante o teste, confere se os servidores do Claude estão acessíveis.
 
 > *English: this README is in Portuguese. The app itself follows the Windows language (Portuguese or English).*
 
@@ -107,6 +107,7 @@ Problemas e sugestões: [abra um chamado no GitHub](https://github.com/GustavoHM
 - **SAP:** o mesmo acesso do Eclipse ADT. Serviço ICF `/sap/bc/adt` ativo, login com usuário e senha (Basic) e o usuário com autorização para usar o ADT. O app lê pelo protocolo HTTPS do ADT e não grava nada.
 - **Rede:** o computador precisa alcançar o SAP (HTTPS) e os servidores do Claude (`claude.ai`, `api.anthropic.com`). O proxy do Windows (inclusive PAC/WPAD) é respeitado; proxy com autenticação NTLM ou Kerberos ainda não é suportado.
 - **Certificados:** o app usa os certificados confiáveis do Windows. A verificação de TLS nunca é desligada. Um certificado próprio do SAP pode ser confiado só no perfil, depois de conferido.
+- **Dados:** o que o Claude lê do SAP (código, definições e, se a ferramenta estiver ligada, conteúdo de tabelas) entra na conversa e é processado pela Anthropic, como qualquer conteúdo compartilhado com o Claude, segundo os termos do plano do Claude usado. Por isso a leitura de conteúdo de tabelas vem desligada em Qualidade e Produção, e perfis de produção exigem confirmação.
 - **Segurança:** a senha fica no Gerenciador de Credenciais do Windows. A configuração do Claude recebe só o caminho do programa e o nome do perfil. HTTP sem criptografia exige confirmação e é bloqueado em perfis de produção.
 - **Instalação:** por usuário, em `%LOCALAPPDATA%\Programs\abap-adt-mcp`, sem administrador. Dados em `%LOCALAPPDATA%\abap-adt-mcp`. Instalação silenciosa: `ABAP-ADT-MCP-Setup-<versão>.exe /S`.
 
