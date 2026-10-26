@@ -25,6 +25,7 @@ async function main(argv: string[]): Promise<number> {
     options: {
       profile: { type: 'string' },
       json: { type: 'boolean' },
+      'no-claude-check': { type: 'boolean' },
       stdin: { type: 'boolean' },
       id: { type: 'string' },
       name: { type: 'string' },
@@ -48,7 +49,7 @@ async function main(argv: string[]): Promise<number> {
       case 'test': {
         const id = option('profile');
         if (!id) throw new UsageError(t(lang, 'cli.missingOption', { option: 'profile' }));
-        return await testConnection(findProfileOrThrow(id, lang), lang, values.json === true);
+        return await testConnection(findProfileOrThrow(id, lang), lang, values.json === true, values['no-claude-check'] !== true);
       }
       case 'profile': {
         const [sub, id] = positionals;
@@ -62,6 +63,11 @@ async function main(argv: string[]): Promise<number> {
       }
       case 'version': {
         const up = upstreamInfo();
+        if (values.json === true) {
+          const info = { version: APP_VERSION, upstream: up, node: process.version, arch: process.arch };
+          process.stdout.write(JSON.stringify(info) + '\n');
+          return 0;
+        }
         process.stdout.write(
           t(lang, 'cli.version', {
             version: APP_VERSION,

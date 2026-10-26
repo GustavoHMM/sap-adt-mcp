@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import { checkClaudeAccess } from '@abap-adt-mcp/core/claude-check';
 import { getPassword } from '@abap-adt-mcp/core/credentials';
 import { t, type Lang } from '@abap-adt-mcp/core/messages';
 import { runConnectionTest, type StepResult } from '@abap-adt-mcp/core/probe';
@@ -12,7 +13,12 @@ const ICON: Record<StepResult['status'], string> = { ok: '✔', warn: '⚠', fai
 /** A harmless lookup that exists in every ABAP system. */
 const PROBE_QUERY = 'CL_ABAP_TYPEDESCR';
 
-export async function testConnection(profile: Profile, lang: Lang, json: boolean): Promise<number> {
+/**
+ * ABAP_ADT_MCP_CLAUDE_CHECK=off (or --no-claude-check) skips the Anthropic
+ * reachability step; automated tests use it so they never touch the internet.
+ */
+export async function testConnection(profile: Profile, lang: Lang, json: boolean, claudeCheck = true): Promise<number> {
+  const checkClaude = claudeCheck && process.env.ABAP_ADT_MCP_CLAUDE_CHECK !== 'off';
   let password: string | null = null;
   try {
     password = getPassword(profile.id);
@@ -26,6 +32,7 @@ export async function testConnection(profile: Profile, lang: Lang, json: boolean
     profile,
     password,
     mcpCheck: () => mcpEndToEnd(profile),
+    claudeCheck: checkClaude ? () => checkClaudeAccess() : undefined,
     onStep: (r) => {
       if (json) process.stdout.write(JSON.stringify(render(r, lang)) + '\n');
       else printStep(r, lang);
@@ -50,7 +57,9 @@ function printStep(r: StepResult, lang: Lang): void {
   process.stdout.write(`${ICON[r.status]} ${title}: ${first ? t(lang, first.key, first.vars) : ''}\n`);
   for (const line of rest) {
     const text = t(lang, line.key, line.vars);
-    if (line.kind === 'basis') process.stdout.write(`    ${t(lang, 'test.basisText')}\n    "${text}"\n`);
+    if (line.kind === 'basis' || line.kind === 'it') {
+      process.stdout.write(`    ${t(lang, line.kind === 'it' ? 'test.itText' : 'test.basisText')}\n    "${text}"\n`);
+    }
     else process.stdout.write(`    ${line.kind === 'action' ? '→ ' : ''}${text}\n`);
   }
 }
