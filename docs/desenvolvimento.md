@@ -74,6 +74,36 @@ Remove-Item Env:ABAP_ADT_MCP_CLI_EXE
 
 Num Windows ARM64, o x64 também roda (por emulação), então dá para testar as duas arquiteturas na mesma máquina.
 
+## Instalador e versões
+
+```powershell
+npm.cmd run package                                   # instalador universal (x64 + ARM64) em release\
+node scripts/package.mjs --arch arm64                 # só uma arquitetura (mais rápido para testar)
+npm.cmd run icons                                     # regenera icon.png, icon.ico e tray.png a partir do icon-source.webp
+```
+
+O que o instalador leva:
+- `ABAP ADT MCP.exe` (Electron, com os *fuses* endurecidos);
+- `resources\cli\` com a CLI `abap-adt-mcp.exe`, gerada em `build\cli-release` para não esbarrar no exe que o Claude estiver usando em `build\cli`;
+- `THIRD-PARTY-NOTICES.md` e `LICENSE.txt`.
+
+Ao abrir, o app instalado:
+1. copia a CLI para `%LOCALAPPDATA%\abap-adt-mcp\runtime\<versão>`;
+2. aponta a junction `runtime\current` para essa versão;
+3. corrige as entradas do Claude que apontam para executáveis nossos.
+
+As configs do Claude usam sempre `runtime\current\abap-adt-mcp.exe`, então uma atualização não muda nada nelas.
+
+A desinstalação chama `abap-adt-mcp.exe uninstall-cleanup [--purge]`, nunca numa atualização. Ela remove só as entradas do Claude que apontam para esta instalação.
+
+### Publicar uma versão
+
+1. Ajuste `version` no `package.json` da raiz (ex.: `0.2.0`), faça o commit e crie a tag `v0.2.0`.
+2. Faça o push da tag. O GitHub Actions testa em x64 e ARM64, gera o instalador universal e cria um **rascunho** de release com o `latest.yml`.
+3. Revise o rascunho e publique. Os apps instalados encontram a versão nova em até 6 horas, ou ao abrir.
+
+O dono do repositório vem de `GH_OWNER`. No Actions ele é preenchido sozinho com o dono do repositório. Num build local sem `GH_OWNER`, o app não procura atualizações.
+
 ## Atualizar o upstream
 
 1. `cd vendor\mcp-abap-adt; git fetch; git checkout <novo-commit>; cd ..\..`

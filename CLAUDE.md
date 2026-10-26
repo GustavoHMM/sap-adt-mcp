@@ -41,7 +41,13 @@ App para Windows que conecta o Claude (Desktop e Code) ao SAP via ADT, empacotan
 | Claude Code | Escopo de usuário sempre. Com a CLI (`claude.exe` no PATH, em `~/.local/bin` ou na cópia do Desktop em `Claude-Data\...\claude-code\<versão>`), usamos `claude mcp add/remove --scope user`. Sem ela, editamos o `.claude.json` com backup. O arquivo fica em `CLAUDE_CONFIG_DIR` ou na pasta do usuário. |
 | Estado das conexões | Conectado / Não conectado / Desatualizado (aponta para outro exe) / Removido por outro programa (a intenção fica em `settings.json > claude`). A prova de uso fica por cliente: `state/serve-<perfil>.<desktop|code>.json`, a partir do `clientInfo` (`claude-code` ou `claude-ai`). |
 | PRD | Para conectar um perfil PRD, é preciso digitar o id do perfil. A checagem é feita no núcleo (`connectProfile`), não só na janela. |
-| Bandeja | Fechar a janela esconde o app na bandeja (com aviso na primeira vez). O menu tem Abrir, Testar <perfil>, Conexões com o Claude e Sair. O ícone é desenhado em código até existir o ícone do produto. |
+| Bandeja | Fechar a janela esconde o app na bandeja (com aviso na primeira vez). O menu tem Abrir, Testar <perfil>, Conexões com o Claude e Sair. "Iniciar com o Windows" abre com `--hidden` (só bandeja). |
+| Ícone | Arte do usuário (`build-resources/icon-source.webp`). `scripts/make-icons.mjs` tira o fundo branco (só as bordas ficam semitransparentes, para não escurecer no tema escuro), recorta e gera `icon.png`, `icon.ico` (16 a 256) e `tray.png`. Lembra os logotipos da SAP e da Anthropic: risco de marca avisado ao usuário. |
+| Caminho estável | As configs do Claude apontam para `%LOCALAPPDATA%\abap-adt-mcp\runtime\current\abap-adt-mcp.exe` (junction para `runtime\<versão>`, copiada de `resources\cli` na abertura do app instalado). Versões ainda em uso por uma sessão do Claude são mantidas. O exe resolve o caminho real na partida (`native.ts: exeDir`) para nunca misturar versões. Na abertura, só as entradas que apontam para executáveis **nossos** são reparadas. |
+| Integridade | `build-upstream` gera `upstream/MANIFEST.json` (SHA-256 de cada arquivo). O hash do manifesto é embutido no exe (`__UPSTREAM_MANIFEST_SHA256__`), e o `serve` confere tudo (cerca de 1300 arquivos, cerca de 100 ms) antes de subir; se algo mudou, bloqueia com mensagem. |
+| Instalador | electron-builder 26 com NSIS por usuário (`oneClick`, sem elevação), universal (x64 e ARM64 num arquivo só) ou por arquitetura. A pasta do app é montada em `build/app` só com os bundles e os módulos nativos das duas arquiteturas. Fuses: sem RunAsNode, sem NODE_OPTIONS ou inspector, integridade do asar. `installer.nsh`: na desinstalação (nunca na atualização), `uninstall-cleanup`, perguntando se apaga perfis e senhas. |
+| Atualização | electron-updater com GitHub Releases (`github.com/<GH_OWNER>/sap-adt-mcp`). Verifica ao abrir e a cada 6 h, baixa em segundo plano e mostra "Reiniciar e atualizar". Releases saem como rascunho no CI a partir das tags `v*`. |
+| Assinatura | `scripts/sign.cjs`, ativado pelos segredos `WINDOWS_SIGN_COMMAND` e `WINDOWS_SIGNTOOL`. Sem eles, os builds saem sem assinatura (só para teste interno). Ver `docs/assinatura-de-codigo.md`. |
 
 ## Estrutura
 
@@ -53,8 +59,9 @@ App para Windows que conecta o Claude (Desktop e Code) ao SAP via ADT, empacotan
 
 ## Pendências conhecidas
 
-- Instalador, caminho estável do exe para as configs do Claude (`runtime\current`) e atualização automática (fase 4). Até lá, as configs apontam para `build\cli\win-<arq>\abap-adt-mcp.exe`.
-- Ícone definitivo do produto (fase 4 ou 5).
+- Fase 5: README de usuário final, pacote de diagnóstico e checklist de lançamento.
+- Repositório no GitHub (`sap-adt-mcp`) ainda não criado; o usuário do GitHub (dono) ainda não foi informado.
+- Certificado de assinatura de pessoa física ainda não comprado.
 - VPN da empresa: túnel completo com inspeção TLS (CA própria da empresa). Na VM de desenvolvimento, Claude e SAP não funcionam juntos até o TI da empresa liberar a exceção ou fornecer a CA oficial. Validações no QAS400 real são feitas em janelas curtas com VPN.
 - Manifesto de integridade do upstream verificado no `serve` (fase 4, junto com o empacotamento).
 - Assinatura de código: certificado de pessoa física, a decidir (fase 4).
