@@ -48,6 +48,8 @@ App para Windows que conecta o Claude (Desktop e Code) ao SAP via ADT, empacotan
 | Instalador | electron-builder 26 com NSIS por usuário (`oneClick`, sem elevação), universal (x64 e ARM64 num arquivo só) ou por arquitetura. A pasta do app é montada em `build/app` só com os bundles e os módulos nativos das duas arquiteturas. Fuses: sem RunAsNode, sem NODE_OPTIONS ou inspector, integridade do asar. `installer.nsh`: na desinstalação (nunca na atualização), `uninstall-cleanup`, perguntando se apaga perfis e senhas. |
 | Atualização | electron-updater com GitHub Releases (`github.com/<GH_OWNER>/sap-adt-mcp`). Verifica ao abrir e a cada 6 h, baixa em segundo plano e mostra "Reiniciar e atualizar". Releases saem como rascunho no CI a partir das tags `v*`. |
 | Assinatura | `scripts/sign.cjs`, ativado pelos segredos `WINDOWS_SIGN_COMMAND` e `WINDOWS_SIGNTOOL`. Sem eles, os builds saem sem assinatura (só para teste interno). Ver `docs/assinatura-de-codigo.md`. |
+| Pacote de diagnóstico | `abap-adt-mcp diagnostics [--out] [--no-network]` e o botão em Sobre (o app roda a CLI). Um `.zip` com ambiente, perfis, proxy, estado do Claude, teste de rede **sem senha** (para depois do TLS, nada é enviado ao SAP), logs e estado. Tudo passa por `makeSanitizer` (`packages/core/src/diagnostics.ts`): segredos, credenciais em URLs, usuários do SAP e o usuário do Windows, também dentro de caminhos. O zip é feito à mão (`zip.ts`), sem dependência nova. |
+| Documentação | `README.md` para o usuário final (pt), `docs/checklist-lancamento.md` a cada versão, `docs/teste-maquina-limpa.md` e `docs/desenvolvimento.md`. |
 
 ## Estrutura
 
@@ -59,10 +61,9 @@ App para Windows que conecta o Claude (Desktop e Code) ao SAP via ADT, empacotan
 
 ## Pendências conhecidas
 
-- Fase 5: README de usuário final, pacote de diagnóstico e checklist de lançamento.
-- Repositório no GitHub (`sap-adt-mcp`) ainda não criado; o usuário do GitHub (dono) ainda não foi informado.
-- Certificado de assinatura de pessoa física ainda não comprado.
+- Repositório no GitHub: `GustavoHMM/sap-adt-mcp` (público). O push é sempre feito ou autorizado pelo dono.
+- Certificado de assinatura de pessoa física ainda não comprado. Até lá, releases só como pré-lançamento para testes internos.
+- Validação com o Claude Desktop real (inclui o reinício feito pelo app) e teste em máquina limpa (`docs/teste-maquina-limpa.md`).
 - VPN da empresa: túnel completo com inspeção TLS (CA própria da empresa). Na VM de desenvolvimento, Claude e SAP não funcionam juntos até o TI da empresa liberar a exceção ou fornecer a CA oficial. Validações no QAS400 real são feitas em janelas curtas com VPN.
-- Manifesto de integridade do upstream verificado no `serve` (fase 4, junto com o empacotamento).
-- Assinatura de código: certificado de pessoa física, a decidir (fase 4).
-- Respostas reais do SAP para senha expirada ou usuário bloqueado: medir no QAS (fase 2).
+- Respostas reais do SAP para senha expirada ou usuário bloqueado: medir no QAS.
+- Ícone: lembra as marcas da SAP e da Anthropic (risco avisado); decidir antes de divulgar.

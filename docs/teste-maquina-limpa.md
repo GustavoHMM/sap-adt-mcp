@@ -23,7 +23,7 @@ Anote ✔ ou ✖ e o que aconteceu em cada item.
    - Sem assinatura, o SmartScreen mostra "O Windows protegeu o computador": use "Mais informações → Executar assim mesmo" e anote isso. Com assinatura, anote se o aviso aparece (reputação ainda baixa) ou não.
 3. A instalação termina sozinha e o app abre no **assistente**.
 4. Confira o atalho "ABAP ADT MCP" no menu Iniciar.
-5. Confira as pastas criadas: `%LOCALAPPDATA%\Programs\ABAP ADT MCP` (instalação) e `%LOCALAPPDATA%\abap-adt-mcp\runtime\current` (junction para a versão).
+5. Confira as pastas criadas: `%LOCALAPPDATA%\Programs\abap-adt-mcp` (instalação) e `%LOCALAPPDATA%\abap-adt-mcp\runtime\current` (junction para a versão).
 
 ### 2. Assistente e teste de conexão
 1. Cole a URL do SAP copiada do navegador, com caminho e `?sap-client=`. O app deve explicar o ajuste e preencher o mandante.
@@ -44,6 +44,7 @@ Anote ✔ ou ✖ e o que aconteceu em cada item.
 2. Rode `cmdkey /list | findstr abap-adt-mcp`: a credencial `<perfil>.abap-adt-mcp` deve existir.
 3. Em `%LOCALAPPDATA%\abap-adt-mcp\profiles.json` e em `logs\`, procure a senha: ela não pode aparecer.
 4. Num perfil PRD, "Conectar" deve pedir que você digite o identificador.
+5. Em Sobre, clique em "Gerar pacote de diagnóstico". Abra o `.zip` e procure a senha, o usuário do SAP e o seu usuário do Windows: nenhum pode aparecer.
 
 ### 5. Bandeja e início com o Windows
 1. Feche a janela: o app continua na bandeja, com um aviso na primeira vez.

@@ -102,7 +102,9 @@ A desinstalação chama `abap-adt-mcp.exe uninstall-cleanup [--purge]`, nunca nu
 2. Faça o push da tag. O GitHub Actions testa em x64 e ARM64, gera o instalador universal e cria um **rascunho** de release com o `latest.yml`.
 3. Revise o rascunho e publique. Os apps instalados encontram a versão nova em até 6 horas, ou ao abrir.
 
-O dono do repositório vem de `GH_OWNER`. No Actions ele é preenchido sozinho com o dono do repositório. Num build local sem `GH_OWNER`, o app não procura atualizações.
+O app procura atualizações em `github.com/<GH_OWNER>/sap-adt-mcp`. No Actions, `GH_OWNER` é o dono do repositório (um fork publica e atualiza pelos próprios releases); num build local, o padrão é `GustavoHMM`.
+
+Antes de publicar, siga o [checklist de lançamento](checklist-lancamento.md).
 
 ## Atualizar o upstream
 
