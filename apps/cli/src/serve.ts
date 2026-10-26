@@ -4,6 +4,7 @@ import { buildChildEnv } from '@abap-adt-mcp/core/child-env';
 import { getPassword } from '@abap-adt-mcp/core/credentials';
 import { createLogger } from '@abap-adt-mcp/core/log';
 import { detectLang, t } from '@abap-adt-mcp/core/messages';
+import { missingComponents } from '@abap-adt-mcp/core/native';
 import { effectiveDisabledTools, getProfile, validateProfile, type Profile } from '@abap-adt-mcp/core/profiles';
 import { resolveProxy } from '@abap-adt-mcp/core/proxy/resolve';
 import { LineSplitter, McpRelay } from '@abap-adt-mcp/core/relay';
@@ -39,6 +40,11 @@ export async function serve(profileId: string): Promise<number> {
     if (problems.includes('http-in-prd')) blockedReason = t(lang, 'blocked.httpPrd', { profile: profile.id });
     else if (problems.includes('http-not-accepted')) blockedReason = t(lang, 'blocked.httpNotAccepted', { profile: profile.id });
     else if (problems.length) blockedReason = t(lang, 'blocked.profileInvalid', { profile: profile.id, problems: problems.join(', ') });
+  }
+  const missing = missingComponents();
+  if (missing.length) {
+    blockedReason = t(lang, 'blocked.incomplete', { components: missing.join(', ') });
+    log.error('components', { missing });
   }
   if (hasStrayDotEnv()) blockedReason = t(lang, 'blocked.dotenv');
   const integrity = verifyUpstream(upstreamDir());

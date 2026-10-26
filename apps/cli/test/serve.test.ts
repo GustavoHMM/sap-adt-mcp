@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, test } from 'node:test';
@@ -184,4 +185,33 @@ test('diagnostics writes a .zip with the real logs and without secrets or user n
   const all = [...zip.values()].map((b) => b.toString('utf8')).join('\n');
   for (const secret of ['secret-1', 'fixture-token', Buffer.from('TESTER:secret-1').toString('base64')]) assert.ok(!all.includes(secret), secret);
   assert.ok(!/tester/i.test(all));
+});
+
+test('an exe shipped without its native modules says the installation is incomplete', { skip: !EXE }, async () => {
+  // What a broken package looked like: exe and upstream, no node_modules next to them.
+  // Outside the test home: a freshly copied exe can stay locked for a moment (antivirus scan).
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'abap-adt-mcp-incompleto-'));
+  fs.copyFileSync(EXE!, path.join(dir, 'abap-adt-mcp.exe'));
+  fs.cpSync(path.join(path.dirname(EXE!), 'upstream'), path.join(dir, 'upstream'), { recursive: true });
+  const exe = path.join(dir, 'abap-adt-mcp.exe');
+  const run = (args: string[]) =>
+    new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
+      const child = spawn(exe, args, { env: childEnv() });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.setEncoding('utf8').on('data', (d: string) => (stdout += d));
+      child.stderr.setEncoding('utf8').on('data', (d: string) => (stderr += d));
+      child.once('error', reject);
+      child.once('exit', (code) => resolve({ code, stdout, stderr }));
+    });
+
+  const version = JSON.parse((await run(['version', '--json'])).stdout) as { missingComponents: string[] };
+  assert.deepEqual(version.missingComponents, ['@napi-rs/keyring', 'koffi']);
+
+  const test = await run(['test', '--profile', profile.id, '--json']);
+  assert.equal(test.code, 1);
+  assert.equal(test.stdout, '', 'no step runs, so nothing claims "no password"');
+  assert.match(test.stderr, /A instalação do ABAP ADT MCP está incompleta: faltam componentes internos \(@napi-rs\/keyring, koffi\)/);
+  assert.ok(!/Cannot find module/.test(test.stderr));
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 });

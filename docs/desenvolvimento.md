@@ -88,7 +88,7 @@ O que o instalador leva:
 - `THIRD-PARTY-NOTICES.md` e `LICENSE.txt`.
 
 Ao abrir, o app instalado:
-1. copia a CLI para `%LOCALAPPDATA%\abap-adt-mcp\runtime\<versão>`;
+1. copia a CLI para `%LOCALAPPDATA%\abap-adt-mcp\runtime\<versão>-<impressão digital>` (cada build tem a própria pasta);
 2. aponta a junction `runtime\current` para essa versão;
 3. corrige as entradas do Claude que apontam para executáveis nossos.
 

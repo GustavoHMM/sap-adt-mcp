@@ -27,7 +27,7 @@ export interface AppInfo {
   sapLanguage: string;
   arch: string;
   /** What Claude runs: reported by the CLI itself. */
-  cli: { version: string; upstream: { name: string; version: string; commit?: string }; node: string; arch: string } | null;
+  cli: { version: string; upstream: { name: string; version: string; commit?: string }; node: string; arch: string; missingComponents?: string[] } | null;
 }
 
 export interface ProfileView extends Profile {

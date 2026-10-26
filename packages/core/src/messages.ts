@@ -38,6 +38,7 @@ const pt = {
   'blocked.httpPrd': 'O perfil {profile} é de produção e usa HTTP sem criptografia, o que é bloqueado. Use a URL HTTPS do SAP.',
   'blocked.httpNotAccepted': 'O perfil {profile} usa HTTP sem criptografia e isso não foi aceito. Use HTTPS ou aceite o risco no app ABAP ADT MCP.',
   'blocked.credentialStore': 'Não foi possível ler o Gerenciador de Credenciais do Windows ({detail}).',
+  'blocked.incomplete': 'A instalação do ABAP ADT MCP está incompleta: faltam componentes internos ({components}). Instale de novo a versão mais recente, de https://github.com/GustavoHMM/sap-adt-mcp/releases/latest. Perfis e senhas são mantidos.',
 
   // CLI
   'cli.usage': [
@@ -169,6 +170,7 @@ const en: Record<Key, string> = {
   'blocked.httpPrd': 'Profile {profile} is a production profile using unencrypted HTTP, which is blocked. Use the HTTPS URL of the SAP system.',
   'blocked.httpNotAccepted': 'Profile {profile} uses unencrypted HTTP and this was not accepted. Use HTTPS or accept the risk in the ABAP ADT MCP app.',
   'blocked.credentialStore': 'Could not read Windows Credential Manager ({detail}).',
+  'blocked.incomplete': 'The ABAP ADT MCP installation is incomplete: internal components are missing ({components}). Install the latest version again from https://github.com/GustavoHMM/sap-adt-mcp/releases/latest. Profiles and passwords are kept.',
   'cli.usage': [
     'Usage:',
     '  abap-adt-mcp serve --profile <ID>          MCP server for Claude (stdio)',

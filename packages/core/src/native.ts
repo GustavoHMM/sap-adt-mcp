@@ -40,3 +40,22 @@ export function loadKeyring(): Keyring {
   keyring ??= nativeRequire('@napi-rs/keyring') as Keyring;
   return keyring;
 }
+
+/**
+ * Native modules that fail to load: an incomplete installation (they ship next
+ * to the exe). Callers report it in plain words instead of a Node stack.
+ */
+export function missingComponents(): string[] {
+  const missing: string[] = [];
+  for (const [name, load] of [
+    ['@napi-rs/keyring', loadKeyring],
+    ['koffi', loadKoffi],
+  ] as const) {
+    try {
+      load();
+    } catch {
+      missing.push(name);
+    }
+  }
+  return missing;
+}

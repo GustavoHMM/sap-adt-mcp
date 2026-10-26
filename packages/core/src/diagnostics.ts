@@ -5,6 +5,7 @@ import { checkClaudeAccess } from './claude-check.ts';
 import { claudeStatus, type ServerCommand } from './claude/integration.ts';
 import { redact } from './log.ts';
 import { t, type Lang } from './messages.ts';
+import { missingComponents } from './native.ts';
 import { logsDir, stateDir } from './paths.ts';
 import { runConnectionTest, type StepResult } from './probe.ts';
 import { loadProfiles, type Profile } from './profiles.ts';
@@ -77,6 +78,7 @@ export async function buildDiagnostics(options: DiagnosticsOptions): Promise<Buf
     locale: Intl.DateTimeFormat().resolvedOptions().locale,
     languageSetting: loadSettings().language ?? 'windows',
     proxyEnvironmentVariables: Object.keys(process.env).filter((k) => /proxy/i.test(k)),
+    missingComponents: missingComponents(),
     ieProxy: (() => {
       try {
         return getIeProxyConfig();

@@ -189,6 +189,14 @@ export function AboutScreen({ info, onLanguage }: { info: AppInfo; onLanguage: (
   return (
     <div className={styles.screen}>
       <Title3 as="h1">{t('about.title')}</Title3>
+      {info.cli?.missingComponents?.length ? (
+        <MessageBar intent="error">
+          <MessageBarBody>
+            <MessageBarTitle>{t('about.incompleteTitle')}</MessageBarTitle>
+            {t('about.incompleteBody', { components: info.cli.missingComponents.join(', ') })}
+          </MessageBarBody>
+        </MessageBar>
+      ) : null}
       <div className={styles.grid}>
         <Body1>{t('about.app')}</Body1>
         <Body1>{info.version}</Body1>

@@ -190,6 +190,8 @@ const pt = {
   'about.updates': 'Atualizações',
   'about.notices': 'Licenças de terceiros',
   'about.startWithWindows': 'Iniciar com o Windows (fica na bandeja)',
+  'about.incompleteTitle': 'Instalação incompleta',
+  'about.incompleteBody': 'Faltam componentes do servidor usado pelo Claude ({components}), e o Claude não vai conseguir ler o SAP. Instale de novo a versão mais recente; perfis e senhas são mantidos.',
   'about.support': 'Suporte',
   'about.diagnosticsHint':
     'Se algo não funcionar, gere o pacote de diagnóstico e envie para quem dá suporte. Ele junta os registros e o resultado de um teste de rede, sem senhas, cookies, tokens nem nomes de usuário.',
@@ -391,6 +393,8 @@ const en: Record<Key, string> = {
   'about.updates': 'Updates',
   'about.notices': 'Third-party licenses',
   'about.startWithWindows': 'Start with Windows (stays in the tray)',
+  'about.incompleteTitle': 'Incomplete installation',
+  'about.incompleteBody': 'Components of the server Claude uses are missing ({components}), so Claude cannot read SAP. Install the latest version again; profiles and passwords are kept.',
   'about.support': 'Support',
   'about.diagnosticsHint':
     'If something does not work, generate the diagnostics package and send it to whoever supports you. It bundles the logs and a network test result, without passwords, cookies, tokens or user names.',

@@ -5,6 +5,7 @@
 // CI sets it from the repository owner, so forks publish and update from their own releases).
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -77,10 +78,14 @@ const result = await build({
     asar: true,
     asarUnpack: ['node_modules/@napi-rs/**', 'node_modules/@koromix/**', 'node_modules/koffi/**'],
     npmRebuild: false,
+    afterPack: (context) => verifyCli(context.appOutDir, Arch[context.arch]),
     nodeGypRebuild: false,
     buildDependenciesFromSource: false,
+    // electron-builder always drops a node_modules folder at the root of a resource set,
+    // so the CLI's native modules (keyring, koffi) go in an entry of their own.
     extraResources: [
       { from: path.join(root, 'build', 'cli-release', 'win-${arch}'), to: 'cli' },
+      { from: path.join(root, 'build', 'cli-release', 'win-${arch}', 'node_modules'), to: 'cli/node_modules' },
       { from: path.join(root, 'build', 'THIRD-PARTY-NOTICES.md'), to: 'THIRD-PARTY-NOTICES.md' },
       { from: path.join(root, 'LICENSE'), to: 'LICENSE.txt' },
     ],
@@ -117,3 +122,38 @@ const result = await build({
   },
 });
 for (const file of result) console.log(`[package] ${path.relative(root, file)}`);
+
+/**
+ * Runs before the installer is made: the packed CLI must carry its native
+ * modules, or Claude would get "Cannot find module" on every machine. When this
+ * computer can run the exe, it also asks the exe itself.
+ */
+function verifyCli(appOutDir, arch) {
+  const cli = path.join(appOutDir, 'resources', 'cli');
+  const required = [
+    'abap-adt-mcp.exe',
+    'upstream/MANIFEST.json',
+    'node_modules/@napi-rs/keyring/package.json',
+    `node_modules/@napi-rs/keyring-win32-${arch}-msvc/keyring.win32-${arch}-msvc.node`,
+    'node_modules/koffi/package.json',
+    `node_modules/@koromix/koffi-win32-${arch}/package.json`,
+  ];
+  const absent = required.filter((f) => !fs.existsSync(path.join(cli, f)));
+  if (absent.length) throw new Error(`[package] ${arch}: CLI incomplete, missing ${absent.join(', ')}`);
+  // Windows on ARM also runs x64; an x64 machine cannot run the ARM64 exe.
+  if (arch !== process.arch && !(process.arch === 'arm64' && arch === 'x64')) {
+    console.log(`[package] ${arch}: CLI files present (exe not run on ${process.arch})`);
+    return;
+  }
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'abap-adt-mcp-verify-'));
+  try {
+    const out = execFileSync(path.join(cli, 'abap-adt-mcp.exe'), ['version', '--json'], { env: { ...process.env, ABAP_ADT_MCP_HOME: home }, encoding: 'utf8' });
+    const info = JSON.parse(out);
+    if (!Array.isArray(info.missingComponents) || info.missingComponents.length) {
+      throw new Error(`[package] ${arch}: the packed CLI cannot load ${info.missingComponents ?? 'its components'}`);
+    }
+    console.log(`[package] ${arch}: CLI ${info.version} loads all native components`);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+}

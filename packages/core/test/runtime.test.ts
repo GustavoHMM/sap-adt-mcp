@@ -10,35 +10,53 @@ import { currentDir, deployRuntime, isOurExecutable, removeRuntime, runtimeRoot,
 import type { Profile } from '../src/profiles.ts';
 
 let home: string;
-const source = (version: string) => {
+const source = (version: string, withNative = true) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'abap-cli-'));
   fs.writeFileSync(path.join(dir, 'abap-adt-mcp.exe'), `exe ${version}`);
   fs.mkdirSync(path.join(dir, 'upstream'));
   fs.writeFileSync(path.join(dir, 'upstream', 'index.js'), 'x');
+  if (withNative) {
+    fs.mkdirSync(path.join(dir, 'node_modules', 'koffi'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'node_modules', 'koffi', 'index.js'), 'native');
+  }
   return dir;
 };
+const currentFolder = () => path.basename(fs.readlinkSync(currentDir()));
 
 before(() => {
   home = tempHome();
 });
 
-test('installing copies the server to runtime\\<version> and points runtime\\current at it', () => {
+test('installing copies the server to runtime\\<version>-<fingerprint> and points runtime\\current at it', () => {
   const r = deployRuntime(source('0.1.0'), '0.1.0');
   assert.equal(r.switched, true);
+  assert.match(currentFolder(), /^0\.1\.0-[0-9a-f]{8}$/);
   assert.equal(r.exe, path.join(home, 'runtime', 'current', 'abap-adt-mcp.exe'));
   assert.equal(fs.readFileSync(stableExe(), 'utf8'), 'exe 0.1.0');
   assert.equal(deployRuntime(source('0.1.0'), '0.1.0').switched, false, 'same version: nothing to do');
 });
 
 test('an update switches the junction; versions still in use are kept, others removed', () => {
-  const busy = (dir: string) => dir.endsWith('0.1.0');
+  const old = currentFolder();
+  const busy = (dir: string) => path.basename(dir) === old;
   const r = deployRuntime(source('0.2.0'), '0.2.0', busy);
   assert.equal(r.switched, true);
   assert.equal(fs.readFileSync(stableExe(), 'utf8'), 'exe 0.2.0');
-  assert.ok(fs.existsSync(path.join(runtimeRoot(), '0.1.0')), 'a Claude session still runs 0.1.0');
+  assert.ok(fs.existsSync(path.join(runtimeRoot(), old)), 'a Claude session still runs 0.1.0');
   const r2 = deployRuntime(source('0.2.0'), '0.2.0');
-  assert.deepEqual(r2.removedOld, ['0.1.0']);
-  assert.equal(path.resolve(fs.readlinkSync(currentDir())), path.join(runtimeRoot(), '0.2.0'));
+  assert.deepEqual(r2.removedOld, [old]);
+  assert.match(currentFolder(), /^0\.2\.0-/);
+});
+
+test('a fixed package of the same version gets its own folder, even while the broken copy runs', () => {
+  deployRuntime(source('0.3.0', false), '0.3.0');
+  const broken = currentFolder();
+  assert.ok(!fs.existsSync(path.join(runtimeRoot(), broken, 'node_modules')));
+  const r = deployRuntime(source('0.3.0'), '0.3.0', (dir) => path.basename(dir) === broken);
+  assert.equal(r.switched, true);
+  assert.notEqual(currentFolder(), broken);
+  assert.ok(fs.existsSync(path.join(runtimeRoot(), currentFolder(), 'node_modules', 'koffi', 'index.js')));
+  assert.ok(fs.existsSync(path.join(runtimeRoot(), broken)), 'kept while a Claude session runs it');
 });
 
 test('only executables under the runtime or our install folder count as ours', () => {

@@ -2,6 +2,7 @@
 import { parseArgs } from 'node:util';
 import { isSea } from 'node:sea';
 import { detectLang, t } from '@abap-adt-mcp/core/messages';
+import { missingComponents } from '@abap-adt-mcp/core/native';
 import { runUpstreamInProcess, UPSTREAM_SUBCOMMAND, upstreamInfo } from '@abap-adt-mcp/core/upstream';
 import { APP_VERSION } from '@abap-adt-mcp/core/version';
 import { addProfile, deleteProfile, findProfileOrThrow, listProfiles, setProfilePassword, showProfile, UsageError } from './profile-command.ts';
@@ -75,7 +76,7 @@ async function main(argv: string[]): Promise<number> {
       case 'version': {
         const up = upstreamInfo();
         if (values.json === true) {
-          const info = { version: APP_VERSION, upstream: up, node: process.version, arch: process.arch };
+          const info = { version: APP_VERSION, upstream: up, node: process.version, arch: process.arch, missingComponents: missingComponents() };
           process.stdout.write(JSON.stringify(info) + '\n');
           return 0;
         }

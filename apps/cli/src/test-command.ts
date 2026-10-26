@@ -3,6 +3,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { checkClaudeAccess } from '@abap-adt-mcp/core/claude-check';
 import { getPassword } from '@abap-adt-mcp/core/credentials';
 import { t, type Lang } from '@abap-adt-mcp/core/messages';
+import { missingComponents } from '@abap-adt-mcp/core/native';
 import { runConnectionTest, type StepResult } from '@abap-adt-mcp/core/probe';
 import { effectiveDisabledTools, type Profile } from '@abap-adt-mcp/core/profiles';
 import { APP_VERSION } from '@abap-adt-mcp/core/version';
@@ -19,6 +20,12 @@ const PROBE_QUERY = 'CL_ABAP_TYPEDESCR';
  */
 export async function testConnection(profile: Profile, lang: Lang, json: boolean, claudeCheck = true): Promise<number> {
   const checkClaude = claudeCheck && process.env.ABAP_ADT_MCP_CLAUDE_CHECK !== 'off';
+  // Without these the test would report "no password" or a silent direct connection; say what is really wrong.
+  const missing = missingComponents();
+  if (missing.length) {
+    process.stderr.write(t(lang, 'blocked.incomplete', { components: missing.join(', ') }) + '\n');
+    return 1;
+  }
   let password: string | null = null;
   try {
     password = getPassword(profile.id);

@@ -1,10 +1,11 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { appHome } from './paths.ts';
 
 /**
  * Claude configs point at runtime\current\abap-adt-mcp.exe, a junction to the
- * installed version's copy. Updates add runtime\<version> and re-point the
+ * installed version's copy. Updates add runtime\<version>-<fingerprint> and re-point the
  * junction: configs never change, and a server Claude is still running keeps
  * its old files.
  */
@@ -28,10 +29,28 @@ export interface DeployResult {
   removedOld: string[];
 }
 
-/** Copies the CLI shipped with the app into runtime\<version> (once) and points runtime\current at it. */
+/**
+ * Identity of a CLI folder: every file's path and size. Two builds of one
+ * version (e.g. a package fixed after a broken one) get different folders, so a
+ * bad copy is never reused.
+ */
+export function folderFingerprint(dir: string): string {
+  const lines: string[] = [];
+  const walk = (rel: string) => {
+    for (const entry of fs.readdirSync(path.join(dir, rel), { withFileTypes: true })) {
+      const name = rel ? `${rel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) walk(name);
+      else if (name !== '.complete') lines.push(`${name}\t${fs.statSync(path.join(dir, name)).size}`);
+    }
+  };
+  walk('');
+  return crypto.createHash('sha256').update(lines.sort().join('\n')).digest('hex').slice(0, 8);
+}
+
+/** Copies the CLI shipped with the app into runtime\<version>-<fingerprint> (once) and points runtime\current at it. */
 export function deployRuntime(sourceDir: string, version: string, inUse: (dir: string) => boolean = () => false): DeployResult {
   const root = runtimeRoot();
-  const target = path.join(root, version);
+  const target = path.join(root, `${version}-${folderFingerprint(sourceDir)}`);
   fs.mkdirSync(root, { recursive: true });
   if (!fs.existsSync(path.join(target, '.complete'))) {
     const tmp = `${target}.partial-${process.pid}`;
