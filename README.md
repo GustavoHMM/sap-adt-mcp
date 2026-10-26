@@ -34,12 +34,12 @@ O assistente tem quatro passos.
 
 | Campo | O que colocar |
 |---|---|
-| Nome amigável | Como você reconhece o sistema. Ex.: "QAS 400". |
 | Endereço do SAP | Cole o endereço que você usa no navegador ou no Eclipse ADT. O app ajusta sozinho (tira caminhos extras e lê o mandante se ele vier no endereço). |
 | Mandante | Três dígitos, como 400. |
-| Usuário e senha | Os mesmos do SAP. A senha vai direto para o Gerenciador de Credenciais do Windows. |
 | Idioma de logon | Duas letras, como PT ou EN. |
+| Usuário e senha | Os mesmos do SAP. A senha vai direto para o Gerenciador de Credenciais do Windows. |
 | Tipo de ambiente | Desenvolvimento, Qualidade ou Produção. |
+| Nome amigável | Como você reconhece o sistema. Ex.: "QAS 400". |
 
 Clique em **Salvar e testar**.
 

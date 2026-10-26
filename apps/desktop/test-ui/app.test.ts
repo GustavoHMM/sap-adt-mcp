@@ -174,6 +174,8 @@ test('a wrong password is fixed from the test screen', { skip: !windows, timeout
 
   await page.getByRole('tab', { name: 'Sobre' }).click();
   await page.getByTestId('upstream-version').getByText(/mcp-abap-adt 1\.2\.0 \(git 05bb510\)/).waitFor();
+  // The save dialog is native, so only the entry point is checked here; the package itself is tested in core and CLI.
+  await page.getByRole('button', { name: 'Gerar pacote de diagnóstico' }).waitFor();
   await shot(page, '07-sobre');
 });
 
