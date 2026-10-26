@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import * as esbuild from 'esbuild';
+import { npm } from './npm.mjs';
 
 /** Official Node.js LTS embedded in the exe. Update together with .node-version. */
 const NODE_VERSION = 'v24.22.1';
@@ -15,17 +16,18 @@ const SEA_FUSE = 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2';
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const cache = path.join(root, 'build', '.cache');
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const { values } = parseArgs({ options: { arch: { type: 'string', default: process.arch } } });
+// --out lets packaging build elsewhere: build/cli may hold an exe a Claude session is running.
+const { values } = parseArgs({ options: { arch: { type: 'string', default: process.arch }, out: { type: 'string', default: 'build/cli' } } });
 const arches = values.arch === 'all' ? ['x64', 'arm64'] : [values.arch];
 for (const a of arches) if (!['x64', 'arm64'].includes(a)) throw new Error(`unsupported arch ${a}`);
 
 const appVersion = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 const pkgVersion = (name) => JSON.parse(fs.readFileSync(path.join(root, 'node_modules', name, 'package.json'), 'utf8')).version;
 
-if (!fs.existsSync(path.join(root, 'build', 'upstream', 'UPSTREAM-INFO.json'))) {
+if (!fs.existsSync(path.join(root, 'build', 'upstream', 'MANIFEST.json'))) {
   execFileSync(process.execPath, [path.join(root, 'scripts', 'build-upstream.mjs')], { stdio: 'inherit' });
 }
+const { manifestHash } = await import('../packages/core/src/integrity.ts');
 
 // 1. One CommonJS bundle for every arch. Native modules stay outside, next to the exe.
 const bundleDir = path.join(root, 'build', 'cli-bundle');
@@ -38,7 +40,11 @@ await esbuild.build({
   format: 'cjs',
   target: 'node24',
   external: ['@napi-rs/keyring', 'koffi'],
-  define: { __APP_VERSION__: JSON.stringify(appVersion), 'import.meta.url': '__importMetaUrl' },
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __UPSTREAM_MANIFEST_SHA256__: JSON.stringify(manifestHash(path.join(root, 'build', 'upstream'))),
+    'import.meta.url': '__importMetaUrl',
+  },
   banner: { js: "const __importMetaUrl = require('node:url').pathToFileURL(__filename).href;" },
   legalComments: 'external',
   logLevel: 'warning',
@@ -92,17 +98,16 @@ function nativePackages(arch) {
     fs.rmSync(dir, { recursive: true, force: true });
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'package.json'), '{"private":true}');
-    execFileSync(npm, ['install', '--no-save', '--force', '--ignore-scripts', '--no-audit', '--no-fund', ...Object.entries(wanted).map(([n, v]) => `${n}@${v}`)], {
+    npm(['install', '--no-save', '--force', '--ignore-scripts', '--no-audit', '--no-fund', ...Object.entries(wanted).map(([n, v]) => `${n}@${v}`)], {
       cwd: dir,
       stdio: 'inherit',
-      shell: true,
     });
   }
   return { dir: path.join(dir, 'node_modules'), names: Object.keys(wanted) };
 }
 
 for (const arch of arches) {
-  const out = path.join(root, 'build', 'cli', `win-${arch}`);
+  const out = path.join(root, values.out, `win-${arch}`);
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(out, { recursive: true });
 

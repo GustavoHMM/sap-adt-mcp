@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isSea } from 'node:sea';
+import { exeDir, exePath } from './native.ts';
 
 /** Internal subcommand that turns the single executable into the upstream server process. */
 export const UPSTREAM_SUBCOMMAND = '__upstream';
@@ -11,7 +12,7 @@ export const UPSTREAM_SUBCOMMAND = '__upstream';
  * packaged app, or the git submodule in development.
  */
 export function upstreamDir(): string {
-  if (isSea()) return path.join(path.dirname(process.execPath), 'upstream');
+  if (isSea()) return path.join(exeDir, 'upstream');
   return fileURLToPath(new URL('../../../vendor/mcp-abap-adt/', import.meta.url));
 }
 
@@ -21,7 +22,7 @@ export function upstreamEntry(): string {
 
 /** How to start the upstream as a child process with the current runtime. */
 export function upstreamCommand(): { command: string; args: string[] } {
-  if (isSea()) return { command: process.execPath, args: [UPSTREAM_SUBCOMMAND] };
+  if (isSea()) return { command: exePath, args: [UPSTREAM_SUBCOMMAND] };
   return { command: process.execPath, args: [upstreamEntry()] };
 }
 

@@ -7,6 +7,7 @@ import { APP_VERSION } from '@abap-adt-mcp/core/version';
 import { addProfile, deleteProfile, findProfileOrThrow, listProfiles, setProfilePassword, showProfile, UsageError } from './profile-command.ts';
 import { serve } from './serve.ts';
 import { testConnection } from './test-command.ts';
+import { uninstallCleanup } from './uninstall.ts';
 
 async function main(argv: string[]): Promise<number> {
   const lang = detectLang();
@@ -26,6 +27,7 @@ async function main(argv: string[]): Promise<number> {
       profile: { type: 'string' },
       json: { type: 'boolean' },
       'no-claude-check': { type: 'boolean' },
+      purge: { type: 'boolean' },
       stdin: { type: 'boolean' },
       id: { type: 'string' },
       name: { type: 'string' },
@@ -61,6 +63,9 @@ async function main(argv: string[]): Promise<number> {
         else throw new UsageError(t(lang, 'cli.usage'));
         return 0;
       }
+      case 'uninstall-cleanup':
+        await uninstallCleanup(values.purge === true);
+        return 0;
       case 'version': {
         const up = upstreamInfo();
         if (values.json === true) {

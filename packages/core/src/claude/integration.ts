@@ -176,6 +176,59 @@ export async function disconnectProfile(profileId: string, kind: ClientKind, env
   return { restartSuggested: true };
 }
 
+/** Our entries ("abap-adt-*") in each Claude config, with the executable they run. */
+function ownedEntries(env: NodeJS.ProcessEnv): { kind: ClientKind; name: string; command: string }[] {
+  const out: { kind: ClientKind; name: string; command: string }[] = [];
+  const collect = (kind: ClientKind, servers: Record<string, unknown>) => {
+    for (const [name, entry] of Object.entries(servers)) {
+      const command = (entry as { command?: unknown } | null)?.command;
+      if (name.startsWith('abap-adt-') && typeof command === 'string') out.push({ kind, name, command });
+    }
+  };
+  collect('desktop', desktopServers(detectClaudeDesktop(env)).servers);
+  const code = detectClaudeCode(env);
+  if (code) collect('code', readCodeServers(code).servers);
+  return out;
+}
+
+/**
+ * After an install or update moved the executable, points our entries at the
+ * current one. Only entries running an executable of ours are touched; a
+ * hand-made registration pointing elsewhere is left alone (shown as outdated).
+ */
+export async function repairOwnedEntries(
+  profiles: Profile[],
+  server: ServerCommand,
+  isOurs: (command: string) => boolean,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<{ repaired: { profileId: string; kind: ClientKind }[]; restartSuggested: boolean }> {
+  const repaired: { profileId: string; kind: ClientKind }[] = [];
+  let restartSuggested = false;
+  for (const entry of ownedEntries(env)) {
+    const profile = profiles.find((p) => mcpServerName(p.id) === entry.name);
+    if (!profile || !isOurs(entry.command)) continue;
+    if (entry.command.toLowerCase() === server.command.toLowerCase()) continue;
+    // The person already confirmed this connection when it was made (PRD included).
+    const r = await connectProfile(profile, entry.kind, server, { confirmation: profile.id, env });
+    if (r.ok) {
+      repaired.push({ profileId: profile.id, kind: entry.kind });
+      restartSuggested ||= r.restartSuggested;
+    }
+  }
+  return { repaired, restartSuggested };
+}
+
+/** Uninstall: removes only the entries that run an executable of ours, and forgets the intents. */
+export async function removeOwnedEntries(isOurs: (command: string) => boolean, env: NodeJS.ProcessEnv = process.env): Promise<number> {
+  let removed = 0;
+  for (const entry of ownedEntries(env)) {
+    if (!isOurs(entry.command)) continue;
+    await disconnectProfile(entry.name.slice('abap-adt-'.length), entry.kind, env);
+    removed++;
+  }
+  return removed;
+}
+
 /** Puts back the newest valid backup over a corrupted (or wiped) Claude config; the bad file is kept as a backup too. */
 export function restoreBackup(kind: ClientKind, env: NodeJS.ProcessEnv = process.env): boolean {
   const target = kind === 'desktop' ? detectClaudeDesktop(env)?.configPath : detectClaudeCode(env)?.configPath;

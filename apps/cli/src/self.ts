@@ -1,9 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import { isSea } from 'node:sea';
+import { exePath } from '@abap-adt-mcp/core/native';
 
 /** How to start this same CLI again (the connection test launches "serve" like Claude does). */
 export function selfCommand(): { command: string; args: string[] } {
-  if (isSea()) return { command: process.execPath, args: [] };
+  if (isSea()) return { command: exePath, args: [] };
   return { command: process.execPath, args: [fileURLToPath(new URL('./main.ts', import.meta.url))] };
 }
 

@@ -8,7 +8,8 @@ import { effectiveDisabledTools, getProfile, validateProfile, type Profile } fro
 import { resolveProxy } from '@abap-adt-mcp/core/proxy/resolve';
 import { LineSplitter, McpRelay } from '@abap-adt-mcp/core/relay';
 import { writeServeRecord } from '@abap-adt-mcp/core/state';
-import { hasStrayDotEnv, upstreamCommand } from '@abap-adt-mcp/core/upstream';
+import { verifyUpstream } from '@abap-adt-mcp/core/integrity';
+import { hasStrayDotEnv, upstreamCommand, upstreamDir } from '@abap-adt-mcp/core/upstream';
 import { APP_VERSION } from '@abap-adt-mcp/core/version';
 
 /**
@@ -40,6 +41,11 @@ export async function serve(profileId: string): Promise<number> {
     else if (problems.length) blockedReason = t(lang, 'blocked.profileInvalid', { profile: profile.id, problems: problems.join(', ') });
   }
   if (hasStrayDotEnv()) blockedReason = t(lang, 'blocked.dotenv');
+  const integrity = verifyUpstream(upstreamDir());
+  if (!integrity.ok) {
+    blockedReason = t(lang, 'blocked.tampered');
+    log.error('integrity', { problem: integrity.problem });
+  }
 
   if (profile && !blockedReason) {
     try {

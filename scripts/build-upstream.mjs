@@ -4,12 +4,12 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { npm } from './npm.mjs';
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const vendor = path.join(root, 'vendor', 'mcp-abap-adt');
 const stage = path.join(root, 'build', 'upstream');
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });
+const run = (args, cwd) => npm(args, { cwd, stdio: 'inherit' });
 
 if (!fs.existsSync(path.join(vendor, 'package.json'))) {
   throw new Error('vendor/mcp-abap-adt is empty: run "git submodule update --init"');
@@ -20,8 +20,8 @@ const dirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=n
 if (dirty) throw new Error(`the upstream working tree has local changes; it must stay untouched:\n${dirty}`);
 
 console.log(`[upstream] building ${commit}`);
-run(npm, ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], vendor);
-run(npm, ['run', 'build'], vendor);
+run(['ci', '--ignore-scripts', '--no-audit', '--no-fund'], vendor);
+run(['run', 'build'], vendor);
 
 console.log('[upstream] staging production copy');
 fs.rmSync(stage, { recursive: true, force: true });
@@ -30,11 +30,16 @@ for (const file of ['package.json', 'package-lock.json', 'LICENSE', 'README.md']
   fs.copyFileSync(path.join(vendor, file), path.join(stage, file));
 }
 fs.cpSync(path.join(vendor, 'dist'), path.join(stage, 'dist'), { recursive: true });
-run(npm, ['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], stage);
+run(['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], stage);
 fs.rmSync(path.join(stage, 'package-lock.json'));
 
 const pkg = JSON.parse(fs.readFileSync(path.join(stage, 'package.json'), 'utf8'));
 const info = { name: pkg.name, version: pkg.version, commit, repository: 'https://github.com/mario-andreschak/mcp-abap-adt', license: pkg.license };
 fs.writeFileSync(path.join(stage, 'UPSTREAM-INFO.json'), JSON.stringify(info, null, 2) + '\n');
 if (fs.existsSync(path.join(stage, '.env'))) throw new Error('a .env file must never be packaged');
+// Integrity manifest: its hash goes into the executable (build-cli.mjs), and serve checks every file.
+const { buildManifest } = await import('../packages/core/src/integrity.ts');
+const manifest = buildManifest(stage);
+fs.writeFileSync(path.join(stage, 'MANIFEST.json'), JSON.stringify(manifest, null, 2) + '\n');
+console.log(`[upstream] manifest: ${Object.keys(manifest.files).length} files`);
 console.log(`[upstream] ready: ${pkg.name} ${pkg.version} (${commit.slice(0, 7)}) in build/upstream`);
