@@ -8,14 +8,25 @@ import path from 'node:path';
 import { once } from 'node:events';
 
 /**
- * Temporary app home and credential namespace so tests never touch real
- * profiles or passwords, and no Claude reachability check (no internet).
+ * Temporary app home, credential namespace and Windows profile folders, so
+ * tests never touch real profiles, passwords or Claude configs, never restart
+ * Claude, and never reach the internet (no Claude reachability check).
  */
 export function tempHome(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'abap-adt-mcp-test-'));
+  const windowsProfile = fs.mkdtempSync(path.join(os.tmpdir(), 'abap-adt-mcp-winprofile-'));
+  for (const sub of ['Local', 'Roaming', 'User']) fs.mkdirSync(path.join(windowsProfile, sub));
   process.env.ABAP_ADT_MCP_HOME = dir;
+  process.env.LOCALAPPDATA = path.join(windowsProfile, 'Local');
+  process.env.APPDATA = path.join(windowsProfile, 'Roaming');
+  process.env.USERPROFILE = path.join(windowsProfile, 'User');
+  // Electron crashes with a fake USERPROFILE, so window tests restore it; Claude Code
+  // detection then still lands here through CLAUDE_CONFIG_DIR. Never run the real CLI.
+  process.env.CLAUDE_CONFIG_DIR = path.join(windowsProfile, 'User');
+  process.env.ABAP_ADT_MCP_CLAUDE_CLI = 'none';
   process.env.ABAP_ADT_MCP_CREDENTIAL_NAMESPACE = 'test';
   process.env.ABAP_ADT_MCP_CLAUDE_CHECK = 'off';
+  process.env.ABAP_ADT_MCP_DISABLE_CLAUDE_RESTART = '1';
   return dir;
 }
 

@@ -29,8 +29,8 @@ before(() => {
   fixture = makeTlsFixture();
 });
 
-after(() => {
-  deleteProfileEverywhere('QAS400');
+after(async () => {
+  await deleteProfileEverywhere('QAS400');
   fs.rmSync(home, { recursive: true, force: true });
   fs.rmSync(fixture.dir, { recursive: true, force: true });
 });
@@ -81,9 +81,9 @@ test('trusting a certificate stores it for that profile only, checking the finge
   assert.ok(fs.readFileSync(view.trustedCertificate!.file, 'utf8').includes('BEGIN CERTIFICATE'));
 });
 
-test('deleting removes the profile, its password and its certificate', { skip: !windows }, () => {
+test('deleting removes the profile, its password and its certificate', { skip: !windows }, async () => {
   const certFile = getProfile('QAS400')!.trustedCertificate!.file;
-  deleteProfileEverywhere('QAS400');
+  await deleteProfileEverywhere('QAS400');
   assert.equal(getProfile('QAS400'), undefined);
   assert.equal(getPassword('QAS400'), null);
   assert.equal(fs.existsSync(certFile), false);

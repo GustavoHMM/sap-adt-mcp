@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, test } from 'node:test';
@@ -23,10 +24,21 @@ let electronProcess: ChildProcess | undefined;
 let browser: Browser | undefined;
 let page: Page | undefined;
 
+let desktopConfig: string;
+let codeConfig: string;
+
 before(async () => {
   home = tempHome();
   fixture = makeTlsFixture();
   mock = await startAdtMock(fixture, 'TESTER', 'secret-1');
+  // Fake Claude installs inside the temporary Windows profile (never the real ones).
+  const local = process.env.LOCALAPPDATA!;
+  fs.mkdirSync(path.join(local, 'Packages', 'Claude_uitest01'), { recursive: true });
+  fs.mkdirSync(path.join(local, 'Claude-Data', 'claude_uitest01'), { recursive: true });
+  desktopConfig = path.join(local, 'Claude-Data', 'claude_uitest01', 'claude_desktop_config.json');
+  fs.writeFileSync(desktopConfig, JSON.stringify({ preferences: { quickEntry: false } }));
+  codeConfig = path.join(process.env.CLAUDE_CONFIG_DIR!, '.claude.json');
+  fs.writeFileSync(codeConfig, JSON.stringify({ numStartups: 3 }));
 });
 
 after(async () => {
@@ -63,7 +75,8 @@ async function launchApp(): Promise<Page> {
   const env = Object.fromEntries(Object.entries(process.env).filter((e): e is [string, string] => e[1] !== undefined));
   delete env.ELECTRON_RUN_AS_NODE;
   electronProcess = spawn(electronExe, [`--remote-debugging-port=${port}`, desktopDir], {
-    env: { ...env, ABAP_ADT_MCP_HOME: home, ABAP_ADT_MCP_LANG: 'pt', ABAP_ADT_MCP_CLI_SOURCE: process.execPath },
+    // Chromium crashes with a fake USERPROFILE: give it the real one (Claude Code still uses CLAUDE_CONFIG_DIR).
+    env: { ...env, USERPROFILE: os.userInfo().homedir, ABAP_ADT_MCP_HOME: home, ABAP_ADT_MCP_LANG: 'pt', ABAP_ADT_MCP_CLI_SOURCE: process.execPath },
     stdio: 'ignore',
   });
   const deadline = Date.now() + 30_000;
@@ -115,7 +128,22 @@ test('first run: paste the URL, save, trust the certificate, pass the test, fini
   await shot(page, '04-teste-ok');
 
   await page.getByRole('button', { name: 'Continuar' }).click();
-  await page.getByText('Em breve').waitFor();
+
+  // Step 3: connect to both Claudes. Claude Desktop is "closed", so the app offers to open it: decline.
+  await page.locator('[data-claude="QAS400:desktop"]').getByRole('button', { name: 'Conectar' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Depois' }).click();
+  await page.locator('[data-claude="QAS400:desktop"][data-state="connected"]').waitFor();
+  await page.locator('[data-claude="QAS400:code"]').getByRole('button', { name: 'Conectar' }).click();
+  await page.locator('[data-claude="QAS400:code"][data-state="connected"]').waitFor();
+  await shot(page, '05-claude');
+  const desktopEntry = JSON.parse(fs.readFileSync(desktopConfig, 'utf8'));
+  assert.deepEqual(desktopEntry.preferences, { quickEntry: false });
+  assert.deepEqual(desktopEntry.mcpServers['abap-adt-QAS400'].args.slice(-3), ['serve', '--profile', 'QAS400']);
+  const codeEntry = JSON.parse(fs.readFileSync(codeConfig, 'utf8'));
+  assert.equal(codeEntry.numStartups, 3);
+  assert.ok(codeEntry.mcpServers['abap-adt-QAS400']);
+  assert.ok(!fs.readFileSync(desktopConfig, 'utf8').includes('SAP_') && !fs.readFileSync(codeConfig, 'utf8').includes('secret-1'));
+
   await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByText('"Mostre o código do programa SAPMV45A"').waitFor();
   await page.getByRole('button', { name: 'Concluir' }).click();
@@ -147,4 +175,18 @@ test('a wrong password is fixed from the test screen', { skip: !windows, timeout
   await page.getByRole('tab', { name: 'Sobre' }).click();
   await page.getByTestId('upstream-version').getByText(/mcp-abap-adt 1\.2\.0 \(git 05bb510\)/).waitFor();
   await shot(page, '07-sobre');
+});
+
+test('the Claude screen shows both connections and removes one', { skip: !windows, timeout: 60_000 }, async () => {
+  assert.ok(page, 'runs after the first-run test');
+  await page.getByRole('tab', { name: 'Claude' }).click();
+  await page.locator('[data-claude="QAS400:desktop"][data-state="connected"]').waitFor();
+  await shot(page, '08-tela-claude');
+  await page.locator('[data-claude="QAS400:code"]').getByRole('button', { name: 'Remover' }).click();
+  await page.locator('[data-claude="QAS400:code"][data-state="not-connected"]').waitFor();
+  assert.equal(JSON.parse(fs.readFileSync(codeConfig, 'utf8')).mcpServers['abap-adt-QAS400'], undefined);
+  await page.getByRole('button', { name: /Ferramentas \(15 de 16\)/ }).click();
+  await page.getByRole('dialog').getByText('GetTableContents', { exact: false }).waitFor();
+  await shot(page, '09-ferramentas');
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
 });
