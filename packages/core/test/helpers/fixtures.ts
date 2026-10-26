@@ -91,13 +91,47 @@ export interface AdtMock {
   port: number;
   requests: AdtRequest[];
   mode: AdtMode;
+  /** SQL received by the data preview (freestyle) endpoint. */
+  queries: string[];
+  /** When true, the next freestyle call answers "CSRF token required" (an expired session). */
+  expireToken: boolean;
   close(): Promise<void>;
+}
+
+/** What the mock data preview returns: MARA-like columns, by column like SAP does. */
+export const MOCK_TABLE = {
+  columns: [
+    ['MATNR', 'Nº do material'],
+    ['ERSDA', 'Criado em'],
+    ['ERNAM', 'Criado por'],
+    ['MAKTX', 'Texto <breve> & "aspas"'],
+  ],
+  rows: [
+    ['2253964', '20110115', 'INTERFACE', 'Parafuso & porca'],
+    ['2254050', '20110115', 'INTERFACE', ''],
+    ['9100001', '20260920', 'MARIA', 'Cimento CP-II'],
+    ['9100002', '20261020', 'JOAO', 'Areia\tlavada'],
+    ['9100003', '20261025', 'JOAO', 'Brita 1'],
+  ],
+};
+
+const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function tableDataXml(sql: string, maxRows: number): string {
+  const rows = MOCK_TABLE.rows.slice(0, maxRows);
+  const columns = MOCK_TABLE.columns
+    .map(([name, description], c) => {
+      const data = rows.map((r) => (r[c] ? `<dataPreview:data>${esc(r[c]!)}</dataPreview:data>` : '<dataPreview:data/>')).join('');
+      return `<dataPreview:columns><dataPreview:metadata dataPreview:name="${name}" dataPreview:type="C" dataPreview:description="${esc(description!)}" dataPreview:keyAttribute="false" dataPreview:length="18"/><dataPreview:dataSet>${data}</dataPreview:dataSet></dataPreview:columns>`;
+    })
+    .join('');
+  return `<?xml version="1.0" encoding="utf-8"?><dataPreview:tableData xmlns:dataPreview="http://www.sap.com/adt/dataPreview"><dataPreview:totalRows>${MOCK_TABLE.rows.length}</dataPreview:totalRows><dataPreview:isHanaAnalyticalView>false</dataPreview:isHanaAnalyticalView><dataPreview:executedQueryString>${esc(sql)}</dataPreview:executedQueryString><dataPreview:queryExecutionTime>1.5</dataPreview:queryExecutionTime>${columns}</dataPreview:tableData>`;
 }
 
 /** Minimal ADT endpoints with Basic auth, sap-client, CSRF and failure modes. */
 export async function startAdtMock(tlsFixture: TlsFixture, user: string, password: string): Promise<AdtMock> {
   const expected = `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}`;
-  const mock: AdtMock = { origin: '', port: 0, requests: [], mode: 'ok', close: async () => undefined };
+  const mock: AdtMock = { origin: '', port: 0, requests: [], mode: 'ok', queries: [], expireToken: false, close: async () => undefined };
   const server = https.createServer({ key: tlsFixture.key, cert: tlsFixture.cert }, (req, res) => {
     const url = new URL(req.url ?? '/', 'https://localhost');
     const authOk = req.headers.authorization === expected;
@@ -124,6 +158,27 @@ export async function startAdtMock(tlsFixture: TlsFixture, user: string, passwor
       return void res
         .writeHead(200, { 'content-type': 'application/xml' })
         .end(`<adtcore:objectReferences xmlns:adtcore="http://www.sap.com/adt/core"><adtcore:objectReference adtcore:name="${url.searchParams.get('query')}" adtcore:type="CLAS/OC"/></adtcore:objectReferences>`);
+    }
+    if (url.pathname === '/sap/bc/adt/datapreview/freestyle' && req.method === 'POST') {
+      // Like SAP: the token must come with the session cookie it belongs to.
+      const session = (req.headers.cookie ?? '').includes('SAP_SESSIONID_MCK_400=fixture');
+      if (mock.expireToken || req.headers['x-csrf-token'] !== 'fixture-token' || !session) {
+        mock.expireToken = false;
+        return void res.writeHead(403, { 'x-csrf-token': 'Required' }).end('CSRF token validation failed');
+      }
+      const chunks: Buffer[] = [];
+      req.on('data', (c: Buffer) => chunks.push(c));
+      req.on('end', () => {
+        const sql = Buffer.concat(chunks).toString('utf8');
+        mock.queries.push(sql);
+        if (/\bNOPE\b/i.test(sql)) {
+          return void res
+            .writeHead(400, { 'content-type': 'application/xml' })
+            .end('<?xml version="1.0" encoding="utf-8"?><exc:exception xmlns:exc="http://www.sap.com/abapxml/types/communicationframework"><namespace id="com.sap.adt.dataPreview"/><type id="Invalid query string"/><message lang="EN">Unknown column name "NOPE"</message><localizedMessage lang="PT">Nome de coluna &quot;NOPE&quot; desconhecido</localizedMessage></exc:exception>');
+        }
+        res.writeHead(200, { 'content-type': 'application/xml' }).end(tableDataXml(sql, Number(url.searchParams.get('rowNumber') ?? 100)));
+      });
+      return;
     }
     if (url.pathname === '/sap/bc/adt/programs/programs/ZFIXTURE/source/main') {
       return void res.writeHead(200, { 'content-type': 'text/plain' }).end("REPORT zfixture.\nWRITE: / 'Olá'.");

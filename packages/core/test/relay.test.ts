@@ -84,3 +84,68 @@ test('lines are split across chunks and CRLF is tolerated', () => {
   assert.deepEqual(s.push('{"c":3}'), []);
   assert.deepEqual(s.flush(), ['{"c":3}']);
 });
+
+const localTools = (calls: Record<string, unknown>[]) =>
+  ['GetTableContents', 'RunSqlQuery'].map((name) => ({
+    definition: { name, description: `local ${name}`, inputSchema: { type: 'object' } },
+    call: async (args: Record<string, unknown>) => {
+      calls.push({ name, ...args });
+      return name === 'RunSqlQuery' ? { text: 'MATNR\n1', isError: false } : { text: 'Error: O SAP recusou a consulta', isError: true, httpStatus: 400 };
+    },
+  }));
+
+test('local tools replace the upstream GetTableContents and add RunSqlQuery after it, still filtered', () => {
+  const list = (disabled: string[]) => {
+    const r = relay({ disabledTools: new Set(disabled), localTools: localTools([]) });
+    r.handleClientLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }));
+    return JSON.parse(r.handleServerLine(JSON.stringify({ jsonrpc: '2.0', id: 1, result: { tools } }))).result.tools as { name: string; description?: string }[];
+  };
+  const all = list([]);
+  assert.deepEqual(all.map((t) => t.name), ['GetProgram', 'GetTableContents', 'RunSqlQuery', 'SearchObject']);
+  assert.equal(all[1]!.description, 'local GetTableContents');
+  assert.deepEqual(list(['GetTableContents', 'RunSqlQuery']).map((t) => t.name), ['GetProgram', 'SearchObject']);
+});
+
+test('local tool calls never reach the upstream and are answered later, valid in both protocol eras', async () => {
+  const calls: Record<string, unknown>[] = [];
+  const replies: string[] = [];
+  const events: ToolCallEvent[] = [];
+  const r = relay({ disabledTools: new Set(), localTools: localTools(calls), onLocalReply: (l) => replies.push(l), onToolCall: (e) => events.push(e) });
+  // The upstream's server identity is reused on local answers.
+  r.handleClientLine(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }));
+  r.handleServerLine(JSON.stringify({ jsonrpc: '2.0', id: 1, result: { tools, _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'mcp-abap-adt' } } } }));
+
+  const out = r.handleClientLine(JSON.stringify({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'RunSqlQuery', arguments: { sql: 'SELECT 1' } } }));
+  assert.deepEqual(out, { toServer: [], toClient: [] });
+  r.handleClientLine(JSON.stringify({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'GetTableContents', arguments: { table_name: 'MARA' } } }));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(calls, [{ name: 'RunSqlQuery', sql: 'SELECT 1' }, { name: 'GetTableContents', table_name: 'MARA' }]);
+  const [ok, failed] = replies.map((l) => JSON.parse(l));
+  assert.deepEqual(ok, {
+    jsonrpc: '2.0',
+    id: 9,
+    result: { content: [{ type: 'text', text: 'MATNR\n1' }], isError: false, resultType: 'complete', _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'mcp-abap-adt' } } },
+  });
+  assert.equal(failed.id, 10);
+  assert.equal(failed.result.isError, true);
+  assert.deepEqual(events.map((e) => [e.tool, e.isError, e.httpStatus]), [['RunSqlQuery', false, undefined], ['GetTableContents', true, 400]]);
+});
+
+test('a blocked profile answers local tools at once with the reason; disabled ones are refused', () => {
+  const blocked = relay({ disabledTools: new Set(), blockedReason: 'Perfil inválido.', localTools: localTools([]) });
+  const reply = JSON.parse(blocked.handleClientLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'RunSqlQuery', arguments: {} } })).toClient[0]!);
+  assert.equal(reply.result.content[0].text, 'Error: Perfil inválido.');
+  assert.equal(reply.result.resultType, 'complete');
+  const off = relay({ localTools: localTools([]) });
+  const refused = JSON.parse(off.handleClientLine(JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'GetTableContents', arguments: {} } })).toClient[0]!);
+  assert.equal(refused.error.code, -32602);
+});
+
+test('the upstream CSRF failure (SAP unreachable before a POST) gets the connection guidance', () => {
+  const r = relay();
+  r.handleClientLine(JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'GetProgram', arguments: {} } }));
+  const text = 'Error: CSRF token is required for POST/PUT requests but could not be fetched';
+  const out = JSON.parse(r.handleServerLine(JSON.stringify({ jsonrpc: '2.0', id: 4, result: { isError: true, content: [{ type: 'text', text }] } })));
+  assert.match(out.result.content[0].text, /VPN ou a rede/);
+});

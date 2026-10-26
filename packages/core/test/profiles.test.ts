@@ -37,11 +37,11 @@ test('profiles are saved without secrets and found ignoring case', () => {
   assert.equal(getProfile('QAS400')?.name, 'QAS renomeado');
 });
 
-test('GetTableContents starts disabled in QAS and PRD, enabled in DEV', () => {
-  assert.deepEqual([...effectiveDisabledTools(base)], ['GetTableContents']);
-  assert.deepEqual([...effectiveDisabledTools({ ...base, environment: 'PRD' })], ['GetTableContents']);
+test('business-data tools start disabled in QAS and PRD, enabled in DEV', () => {
+  assert.deepEqual([...effectiveDisabledTools(base)], ['GetTableContents', 'RunSqlQuery']);
+  assert.deepEqual([...effectiveDisabledTools({ ...base, environment: 'PRD' })], ['GetTableContents', 'RunSqlQuery']);
   assert.deepEqual([...effectiveDisabledTools({ ...base, environment: 'DEV' })], []);
-  assert.deepEqual([...effectiveDisabledTools({ ...base, disabledTools: [] })], []);
+  assert.deepEqual([...effectiveDisabledTools({ ...base, disabledTools: [], knownTools: ['GetTableContents', 'RunSqlQuery'] })], []);
 });
 
 test('HTTP is blocked for PRD and needs explicit acceptance elsewhere', () => {

@@ -187,8 +187,10 @@ test('the Claude screen shows both connections and removes one', { skip: !window
   await page.locator('[data-claude="QAS400:code"]').getByRole('button', { name: 'Remover' }).click();
   await page.locator('[data-claude="QAS400:code"][data-state="not-connected"]').waitFor();
   assert.equal(JSON.parse(fs.readFileSync(codeConfig, 'utf8')).mcpServers['abap-adt-QAS400'], undefined);
-  await page.getByRole('button', { name: /Ferramentas \(15 de 16\)/ }).click();
+  // QAS: both business-data tools (GetTableContents, RunSqlQuery) start off.
+  await page.getByRole('button', { name: /Ferramentas \(15 de 17\)/ }).click();
   await page.getByRole('dialog').getByText('GetTableContents', { exact: false }).waitFor();
+  await page.getByRole('dialog').getByText('RunSqlQuery', { exact: false }).waitFor();
   await shot(page, '09-ferramentas');
   await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
 });

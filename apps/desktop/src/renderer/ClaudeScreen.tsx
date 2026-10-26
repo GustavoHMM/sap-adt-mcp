@@ -25,7 +25,7 @@ import {
   tokens,
 } from '@fluentui/react-components';
 import { ArrowDownload20Regular, Copy20Regular, PlugConnected20Regular, PlugDisconnected20Regular, Wrench20Regular } from '@fluentui/react-icons';
-import { UPSTREAM_TOOLS } from '@abap-adt-mcp/core/tools';
+import { TOOLS } from '@abap-adt-mcp/core/tools';
 import type { ClaudeStatus, ClientKind, EntryState, ProfileView } from '../shared/api.ts';
 import { api } from './api.ts';
 import { useI18n, type UiKey } from './i18n.tsx';
@@ -202,7 +202,7 @@ function ToolsDialog({ profile, open, onClose, onSaved }: { profile: ProfileView
           <DialogContent>
             <Body1 block>{t('claude.toolsBody')}</Body1>
             <div className={styles.tools} style={{ marginTop: 12 }}>
-              {UPSTREAM_TOOLS.map((tool) => (
+              {TOOLS.map((tool) => (
                 <Checkbox
                   key={tool.name}
                   checked={!disabled.has(tool.name)}
@@ -251,7 +251,7 @@ export function ProfileClaudeCard({
   const [toolsOpen, setToolsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const states = status.profiles[profile.id];
-  const enabledCount = UPSTREAM_TOOLS.filter((tool) => !profile.disabledToolsEffective.includes(tool.name)).length;
+  const enabledCount = TOOLS.filter((tool) => !profile.disabledToolsEffective.includes(tool.name)).length;
 
   const row = (kind: ClientKind) => {
     const client = status[kind];
@@ -304,7 +304,7 @@ export function ProfileClaudeCard({
       {row('code')}
       <div className={styles.actions}>
         <Button size="small" icon={<Wrench20Regular />} onClick={() => setToolsOpen(true)}>
-          {t('claude.tools', { enabled: enabledCount, total: UPSTREAM_TOOLS.length })}
+          {t('claude.tools', { enabled: enabledCount, total: TOOLS.length })}
         </Button>
         <Button
           size="small"

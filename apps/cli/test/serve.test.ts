@@ -130,9 +130,11 @@ test('the upstream reaches SAP through the proxy with a CONNECT tunnel only', { 
 test('an unknown profile still starts, and every call explains what to do', { skip: !windows }, async () => {
   const client = await connect('auto', 'NAOEXISTE');
   try {
-    assert.equal((await client.listTools()).tools.length, 16);
-    const r = await client.callTool({ name: 'GetProgram', arguments: { program_name: 'Z' } });
-    assert.equal(text(r), 'Error: O perfil NAOEXISTE não existe neste computador. Abra o app ABAP ADT MCP e reconecte o Claude ao perfil certo.');
+    // 16 upstream tools, GetTableContents replaced by the launcher's, plus RunSqlQuery.
+    assert.equal((await client.listTools()).tools.length, 17);
+    const reason = 'Error: O perfil NAOEXISTE não existe neste computador. Abra o app ABAP ADT MCP e reconecte o Claude ao perfil certo.';
+    assert.equal(text(await client.callTool({ name: 'GetProgram', arguments: { program_name: 'Z' } })), reason);
+    assert.equal(text(await client.callTool({ name: 'RunSqlQuery', arguments: { sql: 'SELECT * FROM t000' } })), reason);
   } finally {
     await client.close();
   }
@@ -146,7 +148,7 @@ test('the test command runs every step, including MCP end to end', { skip: !wind
     steps.map((s) => `${s.step}:${s.status}`),
     ['url:ok', 'proxy:ok', 'dns:ok', 'tcp:ok', 'tls:ok', 'adt:ok', 'csrf:ok', 'mcp:ok', 'claude:skip'],
   );
-  assert.match(steps.find((s) => s.step === 'mcp')!.lines[0]!.text, /15 ferramentas disponíveis para o Claude \(desativadas neste perfil: 1\)/);
+  assert.match(steps.find((s) => s.step === 'mcp')!.lines[0]!.text, /15 ferramentas disponíveis para o Claude \(desativadas neste perfil: 2\)/);
   assert.equal(run.code, 0);
   assert.ok(!run.stdout.includes('secret-1'));
 });
@@ -215,3 +217,34 @@ test('an exe shipped without its native modules says the installation is incompl
   assert.ok(!/Cannot find module/.test(test.stderr));
   fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 });
+
+for (const mode of ['auto', 'legacy'] as const) {
+  test(`serve (${mode} protocol): table contents and SQL queries are answered by the launcher`, { skip: !windows }, async () => {
+    const id = uniqueId('QRY');
+    saveProfile({ ...profile, id, disabledTools: [], knownTools: ['GetTableContents', 'RunSqlQuery'] });
+    setPassword(id, 'secret-1');
+    const client = await connect(mode, id);
+    try {
+      const { tools } = await client.listTools();
+      const contents = tools.find((t) => t.name === 'GetTableContents');
+      assert.ok(tools.some((t) => t.name === 'RunSqlQuery'));
+      assert.ok((contents?.inputSchema.properties as Record<string, unknown>).order_by, 'the launcher schema, not the upstream one');
+
+      const rows = await client.callTool({
+        name: 'GetTableContents',
+        arguments: { table_name: 'mara', columns: ['MATNR', 'ERSDA'], order_by: 'ERSDA DESCENDING', max_rows: 2 },
+      });
+      assert.equal(rows.isError, false);
+      assert.equal(mock.queries.at(-1), 'SELECT MATNR, ERSDA FROM MARA ORDER BY ERSDA DESCENDING');
+      assert.match(text(rows), /^2 linha\(s\) de 5 que atendem à consulta\./);
+      assert.match(text(rows), /\nMATNR\tERSDA\tERNAM\tMAKTX\n2253964\t20110115\tINTERFACE\tParafuso & porca\n/);
+
+      const bad = await client.callTool({ name: 'RunSqlQuery', arguments: { sql: 'SELECT nope FROM mara' } });
+      assert.equal(bad.isError, true);
+      assert.match(text(bad), /O SAP recusou a consulta: Nome de coluna "NOPE" desconhecido/);
+    } finally {
+      await client.close();
+      deletePassword(id);
+    }
+  });
+}

@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { AdtQueryClient } from '@abap-adt-mcp/core/adt-query';
 import { extraCaFile } from '@abap-adt-mcp/core/certs';
 import { buildChildEnv } from '@abap-adt-mcp/core/child-env';
 import { getPassword } from '@abap-adt-mcp/core/credentials';
@@ -7,6 +8,7 @@ import { detectLang, t } from '@abap-adt-mcp/core/messages';
 import { missingComponents } from '@abap-adt-mcp/core/native';
 import { effectiveDisabledTools, getProfile, validateProfile, type Profile } from '@abap-adt-mcp/core/profiles';
 import { resolveProxy } from '@abap-adt-mcp/core/proxy/resolve';
+import { createQueryTools } from '@abap-adt-mcp/core/query-tools';
 import { LineSplitter, McpRelay } from '@abap-adt-mcp/core/relay';
 import { writeServeRecord } from '@abap-adt-mcp/core/state';
 import { verifyUpstream } from '@abap-adt-mcp/core/integrity';
@@ -77,6 +79,14 @@ export async function serve(profileId: string): Promise<number> {
     extraCaFile: usable ? extraCaFile(profile!) : undefined,
     proxyUrl: usable ? proxyUrl : null,
   });
+  // GetTableContents and RunSqlQuery are answered here, with the same profile, password, proxy and trust as the upstream.
+  const queryClient = usable && password ? new AdtQueryClient({ profile: profile!, password, proxyUrl }) : null;
+  const localTools = createQueryTools(
+    queryClient,
+    lang,
+    profile?.id ?? profileId,
+    blockedReason ?? t(lang, 'relay.noPassword', { profile: profile?.id ?? profileId }),
+  );
   password = '';
 
   log.info('start', {
@@ -108,6 +118,8 @@ export async function serve(profileId: string): Promise<number> {
       }
     },
     onToolCall: (e) => log.info('tool', { ...e }),
+    localTools,
+    onLocalReply: (line) => writeClient(line),
   });
 
   const fromClient = new LineSplitter();
@@ -153,6 +165,7 @@ export async function serve(profileId: string): Promise<number> {
     });
     child.once('exit', (code, signal) => {
       for (const line of fromServer.flush()) writeClient(relay.handleServerLine(line));
+      queryClient?.close();
       log.info('exit', { code, signal, ms: Date.now() - started });
       resolve(code ?? 0);
     });

@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test';
 import { getPassword } from '@abap-adt-mcp/core/credentials';
 import { getProfile } from '@abap-adt-mcp/core/profiles';
 import { makeTlsFixture, tempHome, type TlsFixture } from '../../../packages/core/test/helpers/fixtures.ts';
-import { deleteProfileEverywhere, listProfileViews, normalizeUrlView, saveProfileRequest, trustCertificateFor } from '../src/main/services.ts';
+import { deleteProfileEverywhere, listProfileViews, normalizeUrlView, saveProfileRequest, setDisabledTools, trustCertificateFor } from '../src/main/services.ts';
 import type { Profile } from '../src/shared/api.ts';
 
 const windows = process.platform === 'win32';
@@ -87,4 +87,16 @@ test('deleting removes the profile, its password and its certificate', { skip: !
   assert.equal(getProfile('QAS400'), undefined);
   assert.equal(getPassword('QAS400'), null);
   assert.equal(fs.existsSync(certFile), false);
+});
+
+test('a tool choice covers the tools shown, and editing the profile keeps it', { skip: !windows }, () => {
+  assert.equal(saveProfileRequest({ profile: draft({ id: 'QRY400' }), password: 'pw', isNew: true }).ok, true);
+  assert.deepEqual(listProfileViews().find((p) => p.id === 'QRY400')!.disabledToolsEffective, ['GetTableContents', 'RunSqlQuery']);
+  // The person switches both business-data tools on in the tools dialog.
+  setDisabledTools('QRY400', []);
+  assert.deepEqual(listProfileViews().find((p) => p.id === 'QRY400')!.disabledToolsEffective, []);
+  // Later edit from the form (e.g. a new name): the choice must survive.
+  const view = listProfileViews().find((p) => p.id === 'QRY400')!;
+  assert.equal(saveProfileRequest({ profile: { ...view, name: 'Outro nome', knownTools: undefined }, isNew: false }).ok, true);
+  assert.deepEqual(listProfileViews().find((p) => p.id === 'QRY400')!.disabledToolsEffective, []);
 });

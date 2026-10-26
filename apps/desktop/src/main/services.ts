@@ -18,6 +18,7 @@ import {
 } from '@abap-adt-mcp/core/profiles';
 import { normalizeSapUrl, UrlError } from '@abap-adt-mcp/core/url';
 import type { ProfileView, SaveProfileRequest, SaveProfileResult, UrlView } from '../shared/api.ts';
+import { TOOLS } from '@abap-adt-mcp/core/tools';
 
 function hasPassword(id: string): boolean {
   try {
@@ -72,6 +73,8 @@ export function saveProfileRequest(request: SaveProfileRequest): SaveProfileResu
     language: input.language?.trim() ? input.language.trim().toUpperCase() : undefined,
     environment: input.environment,
     disabledTools: Array.isArray(input.disabledTools) ? input.disabledTools.filter((x) => typeof x === 'string') : existing?.disabledTools,
+    // Never from the window: losing it would switch a business-data tool the person enabled back off.
+    knownTools: existing?.knownTools,
     proxy: existing?.proxy,
     trustedCertificate: existing?.trustedCertificate,
     allowInsecureHttp: input.allowInsecureHttp === true ? true : undefined,
@@ -112,7 +115,8 @@ export function setDisabledTools(id: string, tools: unknown): ProfileView {
   const profile = getProfile(id);
   if (!profile) throw new Error('unknown profile');
   const list = Array.isArray(tools) ? [...new Set(tools.filter((t): t is string => typeof t === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(t)))] : [];
-  const updated = { ...profile, disabledTools: list };
+  // knownTools: tools added later that read business data start disabled for this choice.
+  const updated = { ...profile, disabledTools: list, knownTools: TOOLS.map((t) => t.name) };
   saveProfile(updated);
   return toView(updated);
 }

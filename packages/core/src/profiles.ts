@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { profilesFile } from './paths.ts';
 import { normalizeSapUrl, UrlError } from './url.ts';
+import { BUSINESS_DATA_TOOLS, TOOLS_BEFORE_KNOWN } from './tools.ts';
 
 export type Environment = 'DEV' | 'QAS' | 'PRD';
 export const ENVIRONMENTS: readonly Environment[] = ['DEV', 'QAS', 'PRD'];
@@ -30,6 +31,8 @@ export interface Profile {
   environment: Environment;
   /** Tools hidden from Claude. When absent, the environment default applies. */
   disabledTools?: string[];
+  /** Tools that existed when disabledTools was chosen; a business-data tool added later starts disabled outside DEV. */
+  knownTools?: string[];
   proxy?: ProxySetting;
   trustedCertificate?: TrustedCertificate;
   /** Explicit acceptance of plain HTTP. Never valid for PRD. */
@@ -86,13 +89,20 @@ export function validateProfile(p: Profile): ProfileProblem[] {
   return problems;
 }
 
-/** GetTableContents reads business data, so it starts disabled outside DEV. */
+/** Tools that read business data (table contents, SQL queries) start disabled outside DEV. */
 export function defaultDisabledTools(env: Environment): string[] {
-  return env === 'DEV' ? [] : ['GetTableContents'];
+  return env === 'DEV' ? [] : [...BUSINESS_DATA_TOOLS];
 }
 
 export function effectiveDisabledTools(p: Profile): Set<string> {
-  return new Set(p.disabledTools ?? defaultDisabledTools(p.environment));
+  if (!p.disabledTools) return new Set(defaultDisabledTools(p.environment));
+  const disabled = new Set(p.disabledTools);
+  // A choice made before a business-data tool existed never switches that tool on.
+  if (p.environment !== 'DEV') {
+    const known = new Set(p.knownTools ?? TOOLS_BEFORE_KNOWN);
+    for (const name of BUSINESS_DATA_TOOLS) if (!known.has(name)) disabled.add(name);
+  }
+  return disabled;
 }
 
 export function mcpServerName(profileId: string): string {

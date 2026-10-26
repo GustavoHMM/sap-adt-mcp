@@ -66,7 +66,7 @@ Dica: na tela **Claude**, o botão **Copiar instruções de uso** gera um texto 
 - **Vários sistemas:** crie um perfil para cada (DEV, QAS, PRD, mandantes diferentes). No Claude, cada um aparece com o nome `abap-adt-<perfil>`.
 - **Janela fechada:** o Claude continua usando o SAP mesmo com o app fechado. O app fica na bandeja, perto do relógio, e pode iniciar com o Windows (opção em **Sobre**).
 - **Trocar a senha:** em **Perfis**, edite o perfil e digite a nova senha. Deixe o campo em branco para manter a atual.
-- **O que o Claude pode ler:** na tela **Claude**, o botão **Ferramentas** mostra a lista. Todas são somente leitura. A leitura do **conteúdo de tabelas** (dados de negócio) vem desligada em Qualidade e Produção.
+- **O que o Claude pode ler:** na tela **Claude**, o botão **Ferramentas** mostra a lista. Todas são somente leitura. As que leem **dados de negócio** vêm desligadas em Qualidade e Produção: **GetTableContents** (conteúdo de tabelas, com escolha de colunas, filtro e ordem) e **RunSqlQuery** (consultas SELECT, como no SQL Console do Eclipse). Ligadas, elas respondem a pedidos como "quais são os 3 últimos materiais criados?".
 - **Produção:** para ligar um perfil de produção ao Claude, o app pede que você digite o identificador do perfil, como confirmação.
 - **Atualizações:** o app baixa novas versões sozinho e mostra **Reiniciar e atualizar**. Perfis, senhas e conexões com o Claude continuam como estão.
 
@@ -107,7 +107,7 @@ Problemas e sugestões: [abra um chamado no GitHub](https://github.com/GustavoHM
 - **SAP:** o mesmo acesso do Eclipse ADT. Serviço ICF `/sap/bc/adt` ativo, login com usuário e senha (Basic) e o usuário com autorização para usar o ADT. O app lê pelo protocolo HTTPS do ADT e não grava nada.
 - **Rede:** o computador precisa alcançar o SAP (HTTPS) e os servidores do Claude (`claude.ai`, `api.anthropic.com`). O proxy do Windows (inclusive PAC/WPAD) é respeitado; proxy com autenticação NTLM ou Kerberos ainda não é suportado.
 - **Certificados:** o app usa os certificados confiáveis do Windows. A verificação de TLS nunca é desligada. Um certificado próprio do SAP pode ser confiado só no perfil, depois de conferido.
-- **Dados:** o que o Claude lê do SAP (código, definições e, se a ferramenta estiver ligada, conteúdo de tabelas) entra na conversa e é processado pela Anthropic, como qualquer conteúdo compartilhado com o Claude, segundo os termos do plano do Claude usado. Por isso a leitura de conteúdo de tabelas vem desligada em Qualidade e Produção, e perfis de produção exigem confirmação.
+- **Dados:** o que o Claude lê do SAP (código, definições e, se as ferramentas estiverem ligadas, conteúdo de tabelas e resultados de consultas SQL) entra na conversa e é processado pela Anthropic, como qualquer conteúdo compartilhado com o Claude, segundo os termos do plano do Claude usado. Por isso essas ferramentas vêm desligadas em Qualidade e Produção, e perfis de produção exigem confirmação. As consultas usam o mesmo serviço do SQL Console do ADT no Eclipse (`/sap/bc/adt/datapreview/freestyle`): só `SELECT`, com as autorizações de leitura do próprio usuário.
 - **Segurança:** a senha fica no Gerenciador de Credenciais do Windows. A configuração do Claude recebe só o caminho do programa e o nome do perfil. HTTP sem criptografia exige confirmação e é bloqueado em perfis de produção.
 - **Instalação:** por usuário, em `%LOCALAPPDATA%\Programs\abap-adt-mcp`, sem administrador. Dados em `%LOCALAPPDATA%\abap-adt-mcp`. Instalação silenciosa: `ABAP-ADT-MCP-Setup-<versão>.exe /S`.
 
