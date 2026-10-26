@@ -29,6 +29,13 @@ App para Windows que conecta o Claude (Desktop e Code) ao SAP via ADT, empacotan
 | Dados locais | `%LOCALAPPDATA%\abap-adt-mcp` (`ABAP_ADT_MCP_HOME` sobrepõe, para testes): `profiles.json`, `logs/`, `state/`, `certs/`. |
 | Idioma | Idioma da interface do Windows (`ABAP_ADT_MCP_LANG=pt|en` força). |
 | TypeScript | Node 24 roda `.ts` direto (type stripping): só sintaxe apagável (`erasableSyntaxOnly`), imports com `.ts`, sem parameter properties nem enums. TypeScript 7 só para checagem de tipos (`npm run typecheck`). |
+| App (interface) | Electron 45 + React 19 + Fluent UI v9 (`apps/desktop`). Janela com `sandbox`, `contextIsolation`, sem Node, CSP restrita, navegação e novas janelas bloqueadas, e IPC aceito só da nossa página. A lógica fica em `src/main/services.ts` (testável sem Electron). O preload é empacotado **sem banner nem módulos do Node**, porque o preload em sandbox só pode carregar `electron`. |
+| Teste pelo app | O app roda `abap-adt-mcp.exe test --json` (o mesmo runtime do Claude) e mostra as etapas em tempo real. Correções de um clique: confiar no certificado (a impressão digital é conferida no processo principal), trocar a URL por um nome do certificado ou pela URL final do redirecionamento, atualizar a senha e copiar o texto para o Basis ou para o TI. Campos sensíveis (certificado confiado, proxy) nunca vêm da janela; vêm do disco. |
+| Diálogos Fluent | A janela de confirmação fica fora de componentes que são recriados (a lista de etapas). Desmontada no meio do fechamento, ela deixava a página com `aria-hidden` (invisível para leitores de tela e para o `getByRole`). |
+| Acesso ao Claude | O teste sempre termina com a etapa "Acesso ao Claude" (`packages/core/src/claude-check.ts`): só DNS, TCP, handshake TLS e um GET anônimo para `api.anthropic.com` e `claude.ai`. Detecta VPN que bloqueia ou que reassina o tráfego com uma CA da empresa (caso real: VPN corporativa com inspeção TLS) e gera texto para o TI. Resultado `warn`, nunca bloqueia o assistente. |
+| npm 11 | Scripts de instalação ficam bloqueados por padrão. `allowScripts` no `package.json`: Electron permitido; esbuild e koffi negados (os binários prontos vêm em subpacotes). Num workspace, o `npm rebuild` não baixa o Electron, então o `build-desktop.mjs` chama o instalador dele quando falta o binário. |
+| Ganchos de teste | `ABAP_ADT_MCP_HOME` (pasta de dados), `ABAP_ADT_MCP_CREDENTIAL_NAMESPACE` (isola o Gerenciador de Credenciais, porque um perfil de teste "QAS400" sobrescreveria a senha real), `ABAP_ADT_MCP_CLAUDE_CHECK=off` (sem internet), `ABAP_ADT_MCP_CLI_SOURCE` (o app usa a CLI do código-fonte) e `ABAP_ADT_MCP_CLI_EXE` (testes contra o exe). |
+| Teste da janela | Playwright `connectOverCDP` com `--remote-debugging-port`. O `electron.launch()` do Playwright 1.64 cai no Electron 45 (usa `--inspect`). |
 
 ## Estrutura
 
@@ -40,7 +47,9 @@ App para Windows que conecta o Claude (Desktop e Code) ao SAP via ADT, empacotan
 
 ## Pendências conhecidas
 
-- Interface Electron, assistente, integração automática com o Claude e instalador (fases 2 a 4).
+- Integração automática com o Claude e instalador (fases 3 e 4). A interface da fase 2 mostra "em breve" no passo do Claude.
+- Ícone na bandeja do sistema (fase 3 ou 5).
+- VPN da empresa: túnel completo com inspeção TLS (CA própria da empresa). Na VM de desenvolvimento, Claude e SAP não funcionam juntos até o TI da empresa liberar a exceção ou fornecer a CA oficial. Validações no QAS400 real são feitas em janelas curtas com VPN.
 - Manifesto de integridade do upstream verificado no `serve` (fase 4, junto com o empacotamento).
 - Assinatura de código: certificado de pessoa física, a decidir (fase 4).
 - Respostas reais do SAP para senha expirada ou usuário bloqueado: medir no QAS (fase 2).

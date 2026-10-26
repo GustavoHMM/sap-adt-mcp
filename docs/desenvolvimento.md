@@ -32,6 +32,24 @@ npm.cmd run cli -- test --profile QAS400   # teste de conexão em etapas
 
 O Node 24 executa os arquivos `.ts` diretamente. Por isso o código só pode usar sintaxe "apagável": nada de `enum`, `namespace` ou `constructor(readonly x)`, e os imports levam a extensão `.ts`.
 
+## App (interface Electron)
+
+```powershell
+npm.cmd run desktop                         # compila e abre o app
+npm.cmd run desktop:build                   # só compila (apps/desktop/out)
+npm.cmd run test:desktop                    # compila e pilota a janela real (Playwright)
+```
+
+Em desenvolvimento, o app usa `build\cli\win-<arq>\abap-adt-mcp.exe` para o teste de conexão, quando existe. Senão, usa `node apps/cli/src/main.ts`. Para forçar o código-fonte, defina `ABAP_ADT_MCP_CLI_SOURCE` com o caminho do `node.exe`. Para salvar capturas de tela do teste da janela, defina `ABAP_ADT_MCP_SCREENSHOTS` com uma pasta.
+
+## Diagnóstico de rede (VPN, proxy, Claude x SAP)
+
+```powershell
+node C:\Projetos\abap-adt-mcp\scripts\diagnostico-rede.mjs com-vpn
+```
+
+O script mede DNS, TCP, TLS (com o emissor do certificado) e um GET anônimo para a Anthropic e para cada perfil SAP. Também registra rotas padrão e configurações de proxy. O resultado vai para `build\diag`. Se a rede reassinar o tráfego (inspeção TLS), o certificado da CA da empresa é salvo ali para conferência com o TI. Rode uma vez com e outra sem VPN, e compare.
+
 ## Gerar o executável
 
 ```powershell
