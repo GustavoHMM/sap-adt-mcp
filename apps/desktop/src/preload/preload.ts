@@ -43,6 +43,7 @@ const api: DesktopApi = {
   getStartWithWindows: () => ipcRenderer.invoke('app:getStartWithWindows'),
   setStartWithWindows: (enabled) => ipcRenderer.invoke('app:setStartWithWindows', enabled),
   openNotices: () => ipcRenderer.invoke('app:openNotices'),
+  createDiagnostics: () => ipcRenderer.invoke('app:diagnostics'),
 };
 
 contextBridge.exposeInMainWorld('api', api);

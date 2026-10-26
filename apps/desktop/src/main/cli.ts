@@ -65,6 +65,18 @@ export function runCliTest(cli: CliLocation, profileId: string, env: NodeJS.Proc
   return { runId, cancel: () => child.kill() };
 }
 
+/** Runs "diagnostics --out <file>" (DNS/TCP/TLS without password included) and waits for it. */
+export function runCliDiagnostics(cli: CliLocation, env: NodeJS.ProcessEnv, file: string): Promise<{ ok: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    let stderr = '';
+    const child = spawn(cli.command, [...cli.args, 'diagnostics', '--out', file], { env, windowsHide: true });
+    child.stdout.resume();
+    child.stderr.setEncoding('utf8').on('data', (d: string) => (stderr += d));
+    child.once('error', (e) => resolve({ ok: false, error: e.message }));
+    child.once('exit', (code) => resolve(code === 0 ? { ok: true } : { ok: false, error: stderr.trim().split('\n')[0]?.slice(0, 300) || `exit ${code}` }));
+  });
+}
+
 export function cliVersion(cli: CliLocation, env: NodeJS.ProcessEnv): Promise<AppInfo['cli']> {
   return new Promise((resolve) => {
     let out = '';

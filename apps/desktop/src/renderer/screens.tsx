@@ -213,6 +213,7 @@ export function AboutScreen({ info, onLanguage }: { info: AppInfo; onLanguage: (
       <div>
         <Button onClick={() => void api.openNotices()}>{t('about.notices')}</Button>
       </div>
+      <DiagnosticsSection />
       {startWithWindows !== null && (
         <Switch
           checked={startWithWindows}
@@ -230,6 +231,46 @@ export function AboutScreen({ info, onLanguage }: { info: AppInfo; onLanguage: (
           <Radio value="en" label="English" />
         </RadioGroup>
       </Field>
+    </div>
+  );
+}
+
+/** "Generate diagnostics package": a .zip for support, without passwords, cookies, tokens or user names. */
+function DiagnosticsSection() {
+  const { t } = useI18n();
+  const [state, setState] = useState<{ phase: 'idle' | 'running' | 'saved' | 'failed'; file?: string; error?: string }>({ phase: 'idle' });
+  const run = async () => {
+    setState({ phase: 'running' });
+    try {
+      const result = await api.createDiagnostics();
+      if (result.canceled) setState({ phase: 'idle' });
+      else setState(result.ok ? { phase: 'saved', file: result.file } : { phase: 'failed', error: result.error });
+    } catch (e) {
+      setState({ phase: 'failed', error: (e as Error).message });
+    }
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <Subtitle2 as="h2">{t('about.support')}</Subtitle2>
+      <Body1>{t('about.diagnosticsHint')}</Body1>
+      <div>
+        <Button onClick={() => void run()} disabled={state.phase === 'running'} data-testid="diagnostics">
+          {state.phase === 'running' ? t('about.diagnosticsRunning') : t('about.diagnostics')}
+        </Button>
+      </div>
+      {state.phase === 'saved' && (
+        <MessageBar intent="success">
+          <MessageBarBody>{t('about.diagnosticsSaved', { file: state.file ?? '' })}</MessageBarBody>
+        </MessageBar>
+      )}
+      {state.phase === 'failed' && (
+        <MessageBar intent="error">
+          <MessageBarBody>
+            <MessageBarTitle>{t('about.diagnosticsFailed')}</MessageBarTitle>
+            {state.error}
+          </MessageBarBody>
+        </MessageBar>
+      )}
     </div>
   );
 }

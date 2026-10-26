@@ -1,8 +1,8 @@
 // Builds the Windows installers into release/.
 //   node scripts/package.mjs [--arch universal|x64|arm64] [--publish never|always]
 // "universal" (default) is one installer with x64 and ARM64 that picks the right one.
-// GH_OWNER (GitHub user or organisation) enables automatic updates from
-// github.com/<GH_OWNER>/sap-adt-mcp releases; CI sets it from the repository.
+// Updates come from github.com/<GH_OWNER>/sap-adt-mcp releases (GH_OWNER defaults to GustavoHMM;
+// CI sets it from the repository owner, so forks publish and update from their own releases).
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -59,8 +59,7 @@ for (const arch of archs) {
 }
 
 // 3. Installer.
-const owner = process.env.GH_OWNER;
-if (!owner) console.warn('[package] GH_OWNER not set: this build will not find updates.');
+const owner = process.env.GH_OWNER || 'GustavoHMM';
 const resources = path.join(root, 'apps', 'desktop', 'build-resources');
 const suffix = values.arch === 'universal' ? '' : '-${arch}';
 const result = await build({

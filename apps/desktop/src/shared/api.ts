@@ -114,4 +114,6 @@ export interface DesktopApi {
   getStartWithWindows(): Promise<boolean>;
   setStartWithWindows(enabled: boolean): Promise<void>;
   openNotices(): Promise<void>;
+  /** Asks where to save, writes the support .zip and shows it in Explorer. */
+  createDiagnostics(): Promise<{ ok: boolean; canceled?: boolean; file?: string; error?: string }>;
 }

@@ -5,6 +5,11 @@
   "description": "App para Windows que conecta o Claude ao SAP via ADT, usando o servidor MCP mcp-abap-adt",
   "license": "MIT",
   "author": "Gustavo Maia",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GustavoHMM/sap-adt-mcp.git"
+  },
+  "homepage": "https://github.com/GustavoHMM/sap-adt-mcp",
   "type": "module",
   "engines": {
     "node": ">=24.22.0 <25"

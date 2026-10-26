@@ -9,6 +9,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { deletePassword, setPassword } from '@abap-adt-mcp/core/credentials';
 import { saveProfile, type Profile } from '@abap-adt-mcp/core/profiles';
 import { readServeRecord } from '@abap-adt-mcp/core/state';
+import { readZip } from '@abap-adt-mcp/core/zip';
 import { makeTlsFixture, startAdtMock, startConnectProxy, tempHome, uniqueId, type AdtMock, type TlsFixture } from '../../../packages/core/test/helpers/fixtures.ts';
 
 const MAIN = fileURLToPath(new URL('../src/main.ts', import.meta.url));
@@ -171,4 +172,16 @@ test('serve logs never contain the password or the CSRF token', { skip: !windows
   assert.ok(logs.length > 0);
   assert.ok(!logs.includes('secret-1'));
   assert.ok(!logs.includes('fixture-token'));
+});
+
+test('diagnostics writes a .zip with the real logs and without secrets or user names', { skip: !windows }, async () => {
+  const file = path.join(home, 'saida', 'diagnostico.zip');
+  const run = await runCli(['diagnostics', '--out', file, '--no-network']);
+  assert.equal(run.code, 0, run.stderr);
+  assert.match(run.stdout, /diagnostico\.zip/);
+  const zip = readZip(fs.readFileSync(file));
+  assert.ok([...zip.keys()].some((n) => n.startsWith('logs/')));
+  const all = [...zip.values()].map((b) => b.toString('utf8')).join('\n');
+  for (const secret of ['secret-1', 'fixture-token', Buffer.from('TESTER:secret-1').toString('base64')]) assert.ok(!all.includes(secret), secret);
+  assert.ok(!/tester/i.test(all));
 });

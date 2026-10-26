@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { app, BrowserWindow, clipboard, ipcMain, Menu, session, shell, type IpcMainInvokeEvent } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, session, shell, type IpcMainInvokeEvent } from 'electron';
 import { claudeStatus, connectProfile, disconnectProfile, repairOwnedEntries, restoreBackup, type ClientKind, type ServerCommand } from '@abap-adt-mcp/core/claude/integration';
 import { detectClaudeDesktop } from '@abap-adt-mcp/core/claude/desktop';
 import { listProcesses } from '@abap-adt-mcp/core/claude/processes';
@@ -13,7 +13,7 @@ import { loadSettings, saveSettings } from '@abap-adt-mcp/core/settings';
 import { usageInstructions } from '@abap-adt-mcp/core/tools';
 import { APP_VERSION } from '@abap-adt-mcp/core/version';
 import type { AppInfo, NavigateTarget, SaveProfileRequest, TestEvent, UpdateStatus } from '../shared/api.ts';
-import { cliVersion, locateCli, runCliTest, type RunningTest } from './cli.ts';
+import { cliVersion, locateCli, runCliDiagnostics, runCliTest, type RunningTest } from './cli.ts';
 import {
   deleteProfileEverywhere,
   listProfileViews,
@@ -121,6 +121,19 @@ function registerIpc(): void {
   handle('app:setStartWithWindows', (enabled: unknown) => app.setLoginItemSettings({ openAtLogin: enabled === true, args: ['--hidden'] }));
   handle('app:openNotices', async () => {
     await shell.openPath(noticesFile());
+  });
+  handle('app:diagnostics', async () => {
+    const lang = currentLang();
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+    const choice = await dialog.showSaveDialog(mainWindow!, {
+      title: lang === 'pt' ? 'Salvar pacote de diagnóstico' : 'Save diagnostics package',
+      defaultPath: path.join(app.getPath('desktop'), `abap-adt-mcp-diagnostico-${stamp}.zip`),
+      filters: [{ name: 'ZIP', extensions: ['zip'] }],
+    });
+    if (choice.canceled || !choice.filePath) return { ok: false as const, canceled: true };
+    const result = await runCliDiagnostics(cli(), cliEnv(), choice.filePath);
+    if (result.ok) shell.showItemInFolder(choice.filePath);
+    return { ...result, file: choice.filePath };
   });
   handle('update:status', () => updateState);
   handle('update:install', () => {

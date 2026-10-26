@@ -8,6 +8,7 @@ import { addProfile, deleteProfile, findProfileOrThrow, listProfiles, setProfile
 import { serve } from './serve.ts';
 import { testConnection } from './test-command.ts';
 import { uninstallCleanup } from './uninstall.ts';
+import { writeDiagnostics } from './diagnostics-command.ts';
 
 async function main(argv: string[]): Promise<number> {
   const lang = detectLang();
@@ -28,6 +29,8 @@ async function main(argv: string[]): Promise<number> {
       json: { type: 'boolean' },
       'no-claude-check': { type: 'boolean' },
       purge: { type: 'boolean' },
+      out: { type: 'string' },
+      'no-network': { type: 'boolean' },
       stdin: { type: 'boolean' },
       id: { type: 'string' },
       name: { type: 'string' },
@@ -63,6 +66,9 @@ async function main(argv: string[]): Promise<number> {
         else throw new UsageError(t(lang, 'cli.usage'));
         return 0;
       }
+      case 'diagnostics':
+        await writeDiagnostics(lang, option('out'), values['no-network'] !== true);
+        return 0;
       case 'uninstall-cleanup':
         await uninstallCleanup(values.purge === true);
         return 0;
